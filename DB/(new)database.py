@@ -24,7 +24,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-# === NEW MODEL ===
 class User(Base):
     __tablename__ = "users"
 
@@ -37,7 +36,6 @@ class User(Base):
     entries = relationship("PredictionEntry", back_populates="user")
 
 
-# === REPLACED / EXTENDED EXISTING MODEL ===
 class PredictionEntry(Base):
     __tablename__ = "entries"
 
