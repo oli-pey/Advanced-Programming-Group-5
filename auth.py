@@ -59,9 +59,5 @@ def create_user(username: str, password: str, is_admin: bool = False) -> User:
 
 
 def bootstrap_defaults() -> None:
-    """
-    Creates one default admin and one default demo user if they do not exist yet.
-    Change or remove this for production.
-    """
     create_user("admin", "admin123", is_admin=True)
     create_user("user", "user123", is_admin=False)
