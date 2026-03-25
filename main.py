@@ -42,6 +42,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
 
 @ui.page("/login")
+def logout():
+    app.storage.user.clear()
+    return RedirectResponse('/login')
+
 def login_page():
     if app.storage.user.get("authenticated", False):
         return RedirectResponse("/")
@@ -88,6 +92,11 @@ def admin_page():
 @ui.page("/admin/history")
 def admin_history_page():
     admin_history.render()
+
+@ui.page('/logout')
+def logout():
+    app.storage.user.clear()  # Removes "authenticated" status
+    return RedirectResponse('/login')
 
 
 ui.run(

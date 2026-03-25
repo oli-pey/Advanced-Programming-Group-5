@@ -28,9 +28,10 @@ class LandingPage:
         with ui.header().classes('bg-primary text-white p-4 justify-between items-center'):
             ui.label(self.title).classes('text-2xl font-bold')
             with ui.row().classes('items-center space-x-2'):
-                ui.button('History', on_click=lambda: ui.navigate.to('/history')).props('flat color=white icon=history')
-                # Logout Button added here
-                ui.button('Logout', on_click=lambda: ui.navigate.to('/login')).props('flat color=white icon=logout')
+                with ui.row().classes('items-center space-x-2'):
+                    ui.button('History', on_click=lambda: ui.navigate.to('/history')).props('flat color=white icon=history')
+                    # Update the Logout button to point to the /logout route
+                    ui.button('Logout', on_click=lambda: ui.navigate.to('/logout')).props('flat color=white icon=logout')
 
 
         with ui.column().classes('w-full items-center mt-10 space-y-4'):
