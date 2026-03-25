@@ -27,11 +27,11 @@ class LandingPage:
     def render(self):
         with ui.header().classes('bg-primary text-white p-4 justify-between items-center'):
             ui.label(self.title).classes('text-2xl font-bold')
+            # Inside web/index.py -> LandingPage.render()
             with ui.row().classes('items-center space-x-2'):
-                with ui.row().classes('items-center space-x-2'):
-                    ui.button('History', on_click=lambda: ui.navigate.to('/history')).props('flat color=white icon=history')
-                    # Update the Logout button to point to the /logout route
-                    ui.button('Logout', on_click=lambda: ui.navigate.to('/logout')).props('flat color=white icon=logout')
+                ui.button('History', on_click=lambda: ui.navigate.to('/history')).props('flat color=white icon=history')
+                # Use /logout instead of /login to ensure the session is cleared
+                ui.button('Logout', on_click=lambda: ui.navigate.to('/logout')).props('flat color=white icon=logout')
 
 
         with ui.column().classes('w-full items-center mt-10 space-y-4'):
@@ -107,7 +107,7 @@ class LandingPage:
                     user_id=app.storage.user.get('user_id'),  # Add this line
                     original_image=original_png_bytes,
                     downsized_image=downsized_png_bytes,
-                    prediction="7", 
+                    prediction=predicted_digit, 
                     created_at=datetime.datetime.utcnow()
                 )
                 db.add(new_entry)

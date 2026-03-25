@@ -26,26 +26,25 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        if path.startswith("/_nicegui"):
+        # 1. ALLOW internal NiceGUI traffic and static files
+        # Without this, the login page can't "talk" to the server, causing the loop
+        if path.startswith("/_nicegui") or "." in path.split("/")[-1]:
             return await call_next(request)
 
         is_logged_in = app.storage.user.get("authenticated", False)
-        is_admin = app.storage.user.get("is_admin", False)
 
+        # 2. REDIRECT to login if not authenticated
         if not is_logged_in and path not in UNRESTRICTED_ROUTES:
             return RedirectResponse("/login")
 
-        if path in ADMIN_ONLY_ROUTES and not is_admin:
+        # 3. PREVENT authenticated users from getting stuck on the login page
+        if is_logged_in and path == "/login":
             return RedirectResponse("/")
 
         return await call_next(request)
 
 
 @ui.page("/login")
-def logout():
-    app.storage.user.clear()
-    return RedirectResponse('/login')
-
 def login_page():
     if app.storage.user.get("authenticated", False):
         return RedirectResponse("/")
@@ -94,8 +93,8 @@ def admin_history_page():
     admin_history.render()
 
 @ui.page('/logout')
-def logout():
-    app.storage.user.clear()  # Removes "authenticated" status
+def logout_page():
+    app.storage.user.clear()  # This removes the "authenticated" key
     return RedirectResponse('/login')
 
 
