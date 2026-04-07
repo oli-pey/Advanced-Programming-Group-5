@@ -1,6 +1,7 @@
 import base64
 from nicegui import ui, app
 from DB.database import SessionLocal, PredictionEntry, User
+from web.layout import professional_layout
 
 class HistoryPage:
     def render(self):
@@ -52,6 +53,8 @@ class HistoryPage:
                 ui.notify(f"Error deleting entry: {e}", type='negative')
             finally:
                 db.close()
+
+    with professional_layout("HistoryPage"):
 
         rows = load_entries()
 

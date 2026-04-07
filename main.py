@@ -106,3 +106,16 @@ class LandingPage:
 
         except Exception as e:
             ui.notify(f'Processing Error: {str(e)}', type='negative')
+
+@ui.page('/')
+def index():
+    page = LandingPage()
+    page.render()
+    
+@ui.page('/history') # Hier wird die Route definiert
+def history():
+    page = HistoryPage()
+    page.render()
+
+if __name__ in {"__main__", "__mp_main__"}:
+    ui.run(storage_secret='PICK_A_SECURE_PASSWORD')
