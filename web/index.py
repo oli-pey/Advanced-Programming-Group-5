@@ -8,6 +8,7 @@ from nicegui import ui, app
 
 from DB.database import SessionLocal, PredictionEntry
 from ml.registry import get_recognizer
+from ml.registry import get_recognizer
 
 try:
     recognizer = get_recognizer("cnn")
@@ -21,6 +22,7 @@ class LandingPage:
         self.title = "Handwritten Digit Recognizer"
         self.path = []
         self.ii = None
+        self.selected_model = list(get_recognizer.keys())[0] if get_recognizer.keys() else "CNN"
 
     # web/index.py
 
@@ -46,6 +48,14 @@ class LandingPage:
                 'border-4 border-gray-400 bg-white cursor-crosshair shadow-lg'
             ).style('width: 500px; height: 500px;')
 
+        with ui.column().classes("w-full items-center gap-4 mt-10"):
+            ui.label("Select AI Model").classes("text-xl font-bold")
+            ui.select(
+                options=list(get_recognizer().keys()), 
+                label="Choose Algorithm",
+                on_change=lambda e: ui.notify(f"Selected: {e.value}")
+            ).classes("w-64").bind_value(self, 'selected_model')
+
             with ui.row().classes('mt-4 space-x-4'):
                 ui.button('Clear', on_click=self.clear_canvas).props('outline color=red')
                 ui.button('Predict & Save', on_click=self.process_drawing).props('color=primary')
@@ -70,6 +80,14 @@ class LandingPage:
     def clear_canvas(self):
         self.path = []
         self.ii.content = ""
+
+    async def handle_prediction(self, image_data):
+        # 2. Use the selected model for prediction
+        algorithm_name = self.selected_model
+        model_instance = get_recognizer().get(algorithm_name)
+        if model_instance:
+            # result = model_instance.predict(image_data)
+            ui.notify(f"Predicting with {algorithm_name}...")
 
     async def process_drawing(self):
         """Application Logic: convert drawing, run ML, save prediction"""

@@ -1,13 +1,12 @@
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
 from nicegui import ui, app
-
 from web.index import LandingPage
 from web.history import HistoryPage
 from web.admin import AdminDashboard, AdminHistoryPage
 from auth import authenticate_user, bootstrap_defaults
+from auth import create_user, get_user_by_username
 
 bootstrap_defaults()
 
@@ -16,7 +15,7 @@ history = HistoryPage()
 admin_dashboard = AdminDashboard()
 admin_history = AdminHistoryPage()
 
-UNRESTRICTED_ROUTES = {"/login"}
+UNRESTRICTED_ROUTES = {"/login","/register"}
 
 ADMIN_ONLY_ROUTES = {"/admin", "/admin/history"}
 
@@ -43,6 +42,42 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         return await call_next(request)
 
+@ui.page("/register")
+def register_page():
+    if app.storage.user.get("authenticated", False):
+        return RedirectResponse("/")
+
+    def try_register():
+        user_val = username.value.strip()
+        pass_val = password.value
+        confirm_val = confirm_password.value
+
+        if not user_val or not pass_val:
+            ui.notify("Username and password are required", color="negative")
+            return
+        
+        if pass_val != confirm_val:
+            ui.notify("Passwords do not match", color="negative")
+            return
+
+        if get_user_by_username(user_val):
+            ui.notify("Username already exists", color="negative")
+            return
+
+        # Create the user in the database
+        create_user(user_val, pass_val, is_admin=False)
+        ui.notify("Account created successfully! Please log in.", color="positive")
+        ui.navigate.to("/login")
+
+    with ui.card().classes("absolute-center w-96 p-6"):
+        ui.label("Create Account").classes("text-2xl font-bold")
+        username = ui.input("Username").classes("w-full")
+        password = ui.input("Password", password=True, password_toggle_button=True).classes("w-full")
+        confirm_password = ui.input("Confirm Password", password=True, password_toggle_button=True).classes("w-full")
+        
+        with ui.row().classes("w-full justify-between items-center mt-4"):
+            ui.button("Sign Up", on_click=try_register).props("color=primary")
+            ui.link("Back to Login", "/login").classes("text-sm text-blue-500")
 
 @ui.page("/login")
 def login_page():
@@ -59,6 +94,8 @@ def login_page():
         app.storage.user["user_id"] = user.id
         app.storage.user["username"] = user.username
         app.storage.user["is_admin"] = user.is_admin
+        with ui.card().classes("absolute-center w-96 p-6"):
+            ui.label("Login").classes("text-2xl font-bold")
 
         ui.navigate.to("/")
 
@@ -71,6 +108,9 @@ def login_page():
             password_toggle_button=True,
         ).classes("w-full").on("keydown.enter", try_login)
         ui.button("Log in", on_click=try_login).props("color=primary")
+    with ui.row().classes("w-full justify-between items-center mt-4"):
+            ui.button("Log in", on_click=try_login).props("color=primary")
+            ui.link("Create Account", "/register").classes("text-sm text-blue-500") # Add this link
 
 
 @ui.page("/")
