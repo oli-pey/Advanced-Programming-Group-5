@@ -8,15 +8,10 @@ from nicegui import ui, app
 
 from DB.database import SessionLocal, PredictionEntry
 from ml.registry import get_recognizer, AVAILABLE_MODELS
-
-from nicegui import ui, app
-from web.index import LandingPage
-from web.history import HistoryPage
-from web.admin import AdminDashboard, AdminHistoryPage
-from auth import bootstrap_defaults
 from web.layout import professional_layout
 
-bootstrap_defaults()
+
+
     
 
 class HistoryPage:
@@ -130,30 +125,11 @@ class LandingPage:
 
 #Routes
 
-@ui.page('/')
-def index():
-    page = LandingPage()
-    page.render()
+ui.route("/", LandingPage().render)
+ui.route("/history", HistoryPage().render)
+ui.route("/admin", AdminDashboard().render)
+ui.route("/admin/history", AdminHistoryPage().render)
 
-@ui.page('/history')
-def history_page():
-    # This matches the 'History' button in your layout
-    HistoryPage().render()
-
-@ui.page('/admin')
-def admin_page():
-    # This matches the 'Admin' button in your layout
-    AdminDashboard().render()
-
-@ui.page('/admin/history')
-def admin_history_page():
-    # This matches the 'All History' button in your admin dashboard
-    AdminHistoryPage().render()
-
-@ui.page('/logout')
-def logout():
-    app.storage.user.clear()
-    ui.navigate.to('/login')
 
 
 if __name__ in {"__main__", "__mp_main__"}:
