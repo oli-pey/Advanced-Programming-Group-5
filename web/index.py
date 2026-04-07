@@ -7,14 +7,7 @@ from reportlab.graphics import renderPM
 from nicegui import ui, app
 
 from DB.database import SessionLocal, PredictionEntry
-from ml.registry import get_recognizer
-from ml.registry import get_recognizer
-
-try:
-    recognizer = get_recognizer("cnn")
-except Exception as e:
-    recognizer = None
-    print(f"Recognizer failed to load: {e}")
+from ml.registry import get_recognizer, AVAILABLE_MODELS
 
 
 class LandingPage:
@@ -22,19 +15,15 @@ class LandingPage:
         self.title = "Handwritten Digit Recognizer"
         self.path = []
         self.ii = None
-        self.selected_model = list(get_recognizer.keys())[0] if get_recognizer.keys() else "CNN"
-
-    # web/index.py
+        # Use the first available model as the default
+        self.selected_model = AVAILABLE_MODELS[0] if AVAILABLE_MODELS else "cnn"
 
     def render(self):
         with ui.header().classes('bg-primary text-white p-4 justify-between items-center'):
             ui.label(self.title).classes('text-2xl font-bold')
-            # Inside web/index.py -> LandingPage.render()
             with ui.row().classes('items-center space-x-2'):
                 ui.button('History', on_click=lambda: ui.navigate.to('/history')).props('flat color=white icon=history')
-                # Use /logout instead of /login to ensure the session is cleared
                 ui.button('Logout', on_click=lambda: ui.navigate.to('/logout')).props('flat color=white icon=logout')
-
 
         with ui.column().classes('w-full items-center mt-10 space-y-4'):
             ui.label('Draw a digit (0-9) below:').classes('text-xl')
@@ -51,7 +40,7 @@ class LandingPage:
         with ui.column().classes("w-full items-center gap-4 mt-10"):
             ui.label("Select AI Model").classes("text-xl font-bold")
             ui.select(
-                options=list(get_recognizer().keys()), 
+                options=AVAILABLE_MODELS, 
                 label="Choose Algorithm",
                 on_change=lambda e: ui.notify(f"Selected: {e.value}")
             ).classes("w-64").bind_value(self, 'selected_model')
@@ -82,18 +71,19 @@ class LandingPage:
         self.ii.content = ""
 
     async def handle_prediction(self, image_data):
-        # 2. Use the selected model for prediction
         algorithm_name = self.selected_model
-        model_instance = get_recognizer().get(algorithm_name)
-        if model_instance:
-            # result = model_instance.predict(image_data)
+        try:
+            model_instance = get_recognizer(algorithm_name)
             ui.notify(f"Predicting with {algorithm_name}...")
+        except Exception as e:
+            ui.notify(f"Error loading model: {e}", type="negative")
 
     async def process_drawing(self):
         """Application Logic: convert drawing, run ML, save prediction"""
         if not self.ii.content:
             ui.notify("Please draw something first!", type='warning')
             return
+            
         current_user_id = app.storage.user.get('user_id')
         if not current_user_id:
             ui.notify("Error: No user session found. Please log in again.", type='negative')
@@ -113,16 +103,20 @@ class LandingPage:
             img_small.save(small_buffer, format="PNG")
             downsized_png_bytes = small_buffer.getvalue()
 
-            if recognizer is None:
-                ui.notify("ML model not available", type='negative')
+            # Dynamically fetch the algorithm chosen by the user in the UI dropdown
+            try:
+                recognizer = get_recognizer(self.selected_model)
+            except Exception as e:
+                ui.notify(f"ML model failed to load: {e}", type='negative')
                 return
+                
             result = recognizer.predict_from_png_bytes(original_png_bytes)
             predicted_digit = str(result.predicted_digit)
 
             db = SessionLocal()
             try:
                 new_entry = PredictionEntry(
-                    user_id=app.storage.user.get('user_id'),  # Add this line
+                    user_id=current_user_id, 
                     original_image=original_png_bytes,
                     downsized_image=downsized_png_bytes,
                     prediction=predicted_digit, 
@@ -133,7 +127,7 @@ class LandingPage:
             finally:
                 db.close()
 
-            ui.notify(f'Prediction: {predicted_digit}', type='positive')
+            ui.notify(f'Prediction ({self.selected_model}): {predicted_digit}', type='positive')
             self.clear_canvas()
 
         except Exception as e:

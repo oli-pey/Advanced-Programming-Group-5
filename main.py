@@ -1,145 +1,108 @@
-from fastapi import Request
-from fastapi.responses import RedirectResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+import io
+import datetime
+
+from PIL import Image
+from svglib.svglib import svg2rlg
+from reportlab.graphics import renderPM
 from nicegui import ui, app
-from web.index import LandingPage
-from web.history import HistoryPage
-from web.admin import AdminDashboard, AdminHistoryPage
-from auth import authenticate_user, bootstrap_defaults
-from auth import create_user, get_user_by_username
 
-bootstrap_defaults()
+from DB.database import SessionLocal, PredictionEntry
+from ml.registry import get_recognizer, AVAILABLE_MODELS
+from web.layout import professional_layout  # Import our new layout
 
-landing = LandingPage()
-history = HistoryPage()
-admin_dashboard = AdminDashboard()
-admin_history = AdminHistoryPage()
+class LandingPage:
+    def __init__(self):
+        self.title = "Draw a Digit"
+        self.path = []
+        self.ii = None
+        self.selected_model = AVAILABLE_MODELS[0] if AVAILABLE_MODELS else "cnn"
 
-UNRESTRICTED_ROUTES = {"/login","/register"}
+    def render(self):
+        # Wrap everything in the layout
+        with professional_layout(self.title):
+            ui.label('Use your mouse or touch to draw a single digit (0-9)').classes('text-lg text-slate-600')
 
-ADMIN_ONLY_ROUTES = {"/admin", "/admin/history"}
+            self.ii = ui.interactive_image(
+                size=(500, 500),
+                on_mouse=self.handle_mouse,
+                events=['mousedown', 'mousemove', 'mouseup'],
+                cross=False
+            ).classes(
+                'border-4 border-slate-300 rounded-xl bg-white cursor-crosshair shadow-inner transition-all hover:border-blue-400'
+            ).style('width: 500px; height: 500px;')
 
+            # Controls Panel
+            with ui.row().classes("w-full items-center justify-between gap-6 mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200 shadow-sm"):
+                with ui.column().classes("gap-1"):
+                    ui.label("Select AI Model").classes("text-xs font-bold text-slate-500 uppercase tracking-wider")
+                    ui.select(
+                        options=AVAILABLE_MODELS, 
+                        on_change=lambda e: ui.notify(f"Model ready: {e.value}", position='top')
+                    ).classes("w-48").bind_value(self, 'selected_model').props('outlined dense')
 
-@app.add_middleware
-class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
+                with ui.row().classes('gap-4'):
+                    ui.button('Clear Canvas', on_click=self.clear_canvas).props('outline color=negative icon=delete')
+                    ui.button('Predict & Save', on_click=self.process_drawing).props('color=primary icon=auto_awesome shadow')
 
-        # 1. ALLOW internal NiceGUI traffic and static files
-        # Without this, the login page can't "talk" to the server, causing the loop
-        if path.startswith("/_nicegui") or "." in path.split("/")[-1]:
-            return await call_next(request)
+    def handle_mouse(self, e):
+        if e.type == 'mousedown':
+            self.path = [(e.image_x, e.image_y)]
+        elif e.type == 'mousemove' and e.buttons > 0:
+            self.path.append((e.image_x, e.image_y))
+            svg_path = ' '.join([f'{"M" if i == 0 else "L"} {p[0]} {p[1]}' for i, p in enumerate(self.path)])
+            new_stroke = f'''
+            <path d="{svg_path}" stroke="#1e293b" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+            '''
+            self.ii.content += new_stroke
 
-        is_logged_in = app.storage.user.get("authenticated", False)
+    def clear_canvas(self):
+        self.path = []
+        self.ii.content = ""
 
-        # 2. REDIRECT to login if not authenticated
-        if not is_logged_in and path not in UNRESTRICTED_ROUTES:
-            return RedirectResponse("/login")
-
-        # 3. PREVENT authenticated users from getting stuck on the login page
-        if is_logged_in and path == "/login":
-            return RedirectResponse("/")
-
-        return await call_next(request)
-
-@ui.page("/register")
-def register_page():
-    if app.storage.user.get("authenticated", False):
-        return RedirectResponse("/")
-
-    def try_register():
-        user_val = username.value.strip()
-        pass_val = password.value
-        confirm_val = confirm_password.value
-
-        if not user_val or not pass_val:
-            ui.notify("Username and password are required", color="negative")
+    async def process_drawing(self):
+        if not self.ii.content:
+            ui.notify("Please draw something first!", type='warning', position='top')
             return
-        
-        if pass_val != confirm_val:
-            ui.notify("Passwords do not match", color="negative")
-            return
-
-        if get_user_by_username(user_val):
-            ui.notify("Username already exists", color="negative")
-            return
-
-        # Create the user in the database
-        create_user(user_val, pass_val, is_admin=False)
-        ui.notify("Account created successfully! Please log in.", color="positive")
-        ui.navigate.to("/login")
-
-    with ui.card().classes("absolute-center w-96 p-6"):
-        ui.label("Create Account").classes("text-2xl font-bold")
-        username = ui.input("Username").classes("w-full")
-        password = ui.input("Password", password=True, password_toggle_button=True).classes("w-full")
-        confirm_password = ui.input("Confirm Password", password=True, password_toggle_button=True).classes("w-full")
-        
-        with ui.row().classes("w-full justify-between items-center mt-4"):
-            ui.button("Sign Up", on_click=try_register).props("color=primary")
-            ui.link("Back to Login", "/login").classes("text-sm text-blue-500")
-
-@ui.page("/login")
-def login_page():
-    if app.storage.user.get("authenticated", False):
-        return RedirectResponse("/")
-
-    def try_login():
-        user = authenticate_user(username.value.strip(), password.value)
-        if not user:
-            ui.notify("Wrong username or password", color="negative")
+            
+        current_user_id = app.storage.user.get('user_id')
+        if not current_user_id:
+            ui.notify("Error: No user session found. Please log in again.", type='negative')
             return
 
-        app.storage.user["authenticated"] = True
-        app.storage.user["user_id"] = user.id
-        app.storage.user["username"] = user.username
-        app.storage.user["is_admin"] = user.is_admin
-        with ui.card().classes("absolute-center w-96 p-6"):
-            ui.label("Login").classes("text-2xl font-bold")
+        try:
+            full_svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">{self.ii.content}</svg>'
+            svg_file = io.BytesIO(full_svg.encode('utf-8'))
 
-        ui.navigate.to("/")
+            drawing = svg2rlg(svg_file)
+            original_png_bytes = renderPM.drawToString(drawing, fmt="PNG")
 
-    with ui.card().classes("absolute-center w-96 p-6"):
-        ui.label("Login").classes("text-2xl font-bold")
-        username = ui.input("Username").classes("w-full").on("keydown.enter", try_login)
-        password = ui.input(
-            "Password",
-            password=True,
-            password_toggle_button=True,
-        ).classes("w-full").on("keydown.enter", try_login)
-        ui.button("Log in", on_click=try_login).props("color=primary")
-    with ui.row().classes("w-full justify-between items-center mt-4"):
-            ui.button("Log in", on_click=try_login).props("color=primary")
-            ui.link("Create Account", "/register").classes("text-sm text-blue-500") # Add this link
+            img = Image.open(io.BytesIO(original_png_bytes)).convert('L')
+            img_small = img.resize((28, 28), Image.Resampling.LANCZOS)
 
+            small_buffer = io.BytesIO()
+            img_small.save(small_buffer, format="PNG")
+            downsized_png_bytes = small_buffer.getvalue()
 
-@ui.page("/")
-def main_page():
-    landing.render()
+            recognizer = get_recognizer(self.selected_model)
+            result = recognizer.predict_from_png_bytes(original_png_bytes)
+            predicted_digit = str(result.predicted_digit)
 
+            db = SessionLocal()
+            try:
+                new_entry = PredictionEntry(
+                    user_id=current_user_id, 
+                    original_image=original_png_bytes,
+                    downsized_image=downsized_png_bytes,
+                    prediction=predicted_digit, 
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.add(new_entry)
+                db.commit()
+            finally:
+                db.close()
 
-@ui.page("/history")
-def history_view():
-    history.render()
+            ui.notify(f'Prediction ({self.selected_model.upper()}): {predicted_digit}', type='positive', position='center', close_button=True)
+            self.clear_canvas()
 
-
-@ui.page("/admin")
-def admin_page():
-    admin_dashboard.render()
-
-
-@ui.page("/admin/history")
-def admin_history_page():
-    admin_history.render()
-
-@ui.page('/logout')
-def logout_page():
-    app.storage.user.clear()  # This removes the "authenticated" key
-    return RedirectResponse('/login')
-
-
-ui.run(
-    title="Advanced Programming Project - Group 5",
-    port=8080,
-    storage_secret="CHANGE_THIS_TO_A_LONG_RANDOM_SECRET",
-)
+        except Exception as e:
+            ui.notify(f'Processing Error: {str(e)}', type='negative')
