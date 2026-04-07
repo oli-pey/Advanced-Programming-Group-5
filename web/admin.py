@@ -38,27 +38,49 @@ class AdminHistoryPage:
             ui.navigate.to("/")
             return
 
-        db = SessionLocal()
-        try:
-            entries = (
-                db.query(PredictionEntry, User.username)
-                .join(User, PredictionEntry.user_id == User.id)
-                .order_by(PredictionEntry.created_at.desc())
-                .all()
-            )
-        finally:
-            db.close()
+        def load_all_entries():
+            """Helper to fetch all entries for the table."""
+            db = SessionLocal()
+            try:
+                # Joining PredictionEntry and User to get the username
+                entries = (
+                    db.query(PredictionEntry, User.username)
+                    .join(User, PredictionEntry.user_id == User.id)
+                    .order_by(PredictionEntry.created_at.desc())
+                    .all()
+                )
+                
+                rows = []
+                for entry, username in entries:
+                    original_base64 = base64.b64encode(entry.original_image).decode("utf-8")
+                    rows.append({
+                        "id": entry.id,
+                        "username": username,
+                        "prediction": entry.prediction,
+                        "original": f"data:image/png;base64,{original_base64}",
+                        "date": entry.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    })
+                return rows
+            finally:
+                db.close()
 
-        rows = []
-        for entry, username in entries:
-            original_base64 = base64.b64encode(entry.original_image).decode("utf-8")
-            rows.append({
-                "id": entry.id,
-                "username": username,
-                "prediction": entry.prediction,
-                "original": f"data:image/png;base64,{original_base64}",
-                "date": entry.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            })
+        async def admin_delete_entry(entry_id):
+            """Admin-level deletion: removes any entry by ID."""
+            db = SessionLocal()
+            try:
+                entry = db.query(PredictionEntry).filter(PredictionEntry.id == entry_id).first()
+                if entry:
+                    db.delete(entry)
+                    db.commit()
+                    ui.notify(f"Admin: Entry {entry_id} deleted successfully.")
+                    # Refresh the table rows with the helper function
+                    table.rows[:] = load_all_entries()
+            except Exception as e:
+                ui.notify(f"Error deleting entry: {e}", type='negative')
+            finally:
+                db.close()
+
+        rows = load_all_entries()
 
         with ui.header().classes("bg-primary text-white p-4 justify-between items-center"):
             ui.label("Admin History").classes("text-2xl font-bold")
@@ -79,17 +101,29 @@ class AdminHistoryPage:
                 {"name": "original", "label": "Drawing", "field": "original", "align": "center"},
                 {"name": "prediction", "label": "Prediction", "field": "prediction", "sortable": True},
                 {"name": "date", "label": "Timestamp", "field": "date", "sortable": True},
+                {"name": "delete", "label": "Actions", "field": "id"} # Added column
             ]
 
             table = ui.table(columns=columns, rows=rows, row_key="id").classes(
                 "w-11/12 shadow-xl border-2"
             )
 
+            # Slot for the drawing image
             table.add_slot("body-cell-original", r'''
             <q-td :props="props">
               <img :src="props.value" alt="drawing" style="width:60px;height:60px;object-fit:contain;" />
             </q-td>
             ''')
+
+            # New slot for the admin delete button
+            table.add_slot("body-cell-delete", r'''
+            <q-td :props="props">
+              <q-btn flat round icon="delete" color="red" @click="$parent.$emit('admin_delete', props.value)" />
+            </q-td>
+            ''')
+            
+            # Link the custom 'admin_delete' event to the Python function
+            table.on('admin_delete', lambda msg: admin_delete_entry(msg.args))
 
             if not rows:
                 ui.label("No entries found in database.").classes(
