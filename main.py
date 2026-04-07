@@ -8,7 +8,28 @@ from nicegui import ui, app
 
 from DB.database import SessionLocal, PredictionEntry
 from ml.registry import get_recognizer, AVAILABLE_MODELS
-from web.layout import professional_layout  # Import our new layout
+
+from nicegui import ui, app
+from web.index import LandingPage
+from web.history import HistoryPage
+from web.admin import AdminDashboard, AdminHistoryPage
+from auth import bootstrap_defaults
+from web.layout import professional_layout
+
+bootstrap_defaults()
+    
+
+class HistoryPage:
+        def render(self):
+            ui.label('History page is not available.').classes('text-slate-600')
+
+class AdminDashboard:
+        def render(self):
+            ui.label('Admin dashboard is not available.').classes('text-slate-600')
+
+class AdminHistoryPage:
+        def render(self):
+            ui.label('Admin history page is not available.').classes('text-slate-600')
 
 class LandingPage:
     def __init__(self):
@@ -107,15 +128,33 @@ class LandingPage:
         except Exception as e:
             ui.notify(f'Processing Error: {str(e)}', type='negative')
 
+#Routes
+
 @ui.page('/')
 def index():
     page = LandingPage()
     page.render()
-    
-@ui.page('/history') # Hier wird die Route definiert
-def history():
-    page = HistoryPage()
-    page.render()
+
+@ui.page('/history')
+def history_page():
+    # This matches the 'History' button in your layout
+    HistoryPage().render()
+
+@ui.page('/admin')
+def admin_page():
+    # This matches the 'Admin' button in your layout
+    AdminDashboard().render()
+
+@ui.page('/admin/history')
+def admin_history_page():
+    # This matches the 'All History' button in your admin dashboard
+    AdminHistoryPage().render()
+
+@ui.page('/logout')
+def logout():
+    app.storage.user.clear()
+    ui.navigate.to('/login')
+
 
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(storage_secret='PICK_A_SECURE_PASSWORD')
