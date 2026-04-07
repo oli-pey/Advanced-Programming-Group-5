@@ -2,11 +2,12 @@ from nicegui import ui, app
 from contextlib import contextmanager
 
 def logout_user():
-    app.storage.user.clear()
-    ui.navigate.to('/login')
+    ui.navigate.to('/logout')
 
 @contextmanager
 def professional_layout(page_title: str):
+    is_authenticated = bool(app.storage.user.get('user_id'))
+    is_admin = bool(app.storage.user.get('is_admin', False))
 
     ui.colors(
         primary='#2563eb',
@@ -31,11 +32,13 @@ def professional_layout(page_title: str):
                 'text-xl font-bold text-slate-800'
             )
 
-        with ui.row().classes('gap-2'):
-            ui.button('Home', on_click=lambda: ui.navigate.to('/')).props('flat icon=home')
-            ui.button('History', on_click=lambda: ui.navigate.to('/history')).props('flat icon=history')
-            ui.button('Admin', on_click=lambda: ui.navigate.to('/admin')).props('flat icon=admin_panel_settings')
-            ui.button('Logout', on_click=logout_user).props('flat color=negative icon=logout')
+        if is_authenticated:
+            with ui.row().classes('gap-2'):
+                ui.button('Home', on_click=lambda: ui.navigate.to('/')).props('flat icon=home')
+                ui.button('History', on_click=lambda: ui.navigate.to('/history')).props('flat icon=history')
+                if is_admin:
+                    ui.button('Admin', on_click=lambda: ui.navigate.to('/admin')).props('flat icon=admin_panel_settings')
+                ui.button('Logout', on_click=logout_user).props('flat color=negative icon=logout')
 
     with ui.column().classes(
         'w-full min-h-screen items-center p-8'
