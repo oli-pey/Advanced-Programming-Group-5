@@ -5,7 +5,6 @@ from PIL import Image
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 from nicegui import ui, app
-import auth
 from DB.database import SessionLocal, PredictionEntry
 from ml import result
 from ml.registry import get_recognizer, AVAILABLE_MODELS
@@ -13,8 +12,9 @@ from web.index import LandingPage
 from web.layout import professional_layout
 from web.history import HistoryPage
 from web.admin import AdminDashboard, AdminHistoryPage
+from auth import bootstrap_defaults
 
-
+bootstrap_defaults()
 
 
 class LandingPage:
@@ -312,4 +312,6 @@ def admin_history_page():
     AdminHistoryPage().render()
 
 if __name__ in {"__main__", "__mp_main__"}:
+    import auth
+    auth.bootstrap_defaults() # This ensures 'admin' exists with admin rights
     ui.run(storage_secret='PICK_A_SECURE_PASSWORD')

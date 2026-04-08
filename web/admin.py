@@ -225,6 +225,8 @@ class AdminHistoryPage:
                 {"name": "username", "label": "User", "field": "username", "sortable": True},
                 {"name": "original", "label": "Drawing", "field": "original", "align": "center"},
                 {"name": "prediction", "label": "Prediction", "field": "prediction", "sortable": True},
+                {"name": "model_name", "label": "Model", "field": "model_name", "sortable": True},
+                {"name": "probability", "label": "Confidence", "field": "probability", "sortable": True},
                 {"name": "date", "label": "Timestamp", "field": "date", "sortable": True},
                 {"name": "delete", "label": "Actions", "field": "id"}
             ]

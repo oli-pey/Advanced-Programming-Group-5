@@ -32,6 +32,7 @@ class HistoryPage:
         with professional_layout("My History"):
             rows = load_entries()
             columns = [
+                {"name": "id", "label": "ID", "field": "id", "sortable": True},
                 {"name": "original", "label": "Drawing", "field": "original", "align": "center"},
                 {"name": "prediction", "label": "Result", "field": "prediction", "sortable": True},
                 {"name": "model_name", "label": "Model", "field": "model_name", "sortable": True},
