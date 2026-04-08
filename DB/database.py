@@ -45,6 +45,8 @@ class PredictionEntry(Base):
     original_image = Column(LargeBinary, nullable=False)
     downsized_image = Column(LargeBinary, nullable=False)
     prediction = Column(Text, nullable=False)
+    model_name = Column(String(50), nullable=True)
+    probability = Column(Text, nullable=True)     
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     user = relationship("User", back_populates="entries")

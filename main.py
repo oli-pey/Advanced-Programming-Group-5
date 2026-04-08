@@ -7,6 +7,7 @@ from reportlab.graphics import renderPM
 from nicegui import ui, app
 import auth
 from DB.database import SessionLocal, PredictionEntry
+from ml import result
 from ml.registry import get_recognizer, AVAILABLE_MODELS
 from web.index import LandingPage
 from web.layout import professional_layout
@@ -150,6 +151,8 @@ class LandingPage:
             )
 
             predicted_digit = str(result.predicted_digit)
+            model_used = result.model_name
+            confidence_score = str(result.confidence)
 
             db = SessionLocal()
 
@@ -159,6 +162,8 @@ class LandingPage:
                     original_image=original_png_bytes,
                     downsized_image=downsized_png_bytes,
                     prediction=predicted_digit,
+                    model_name=model_used,        # Save algorithm name
+                    probability=confidence_score,
                     created_at=datetime.datetime.utcnow()
                 )
 

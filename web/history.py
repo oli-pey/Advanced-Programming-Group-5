@@ -20,6 +20,8 @@ class HistoryPage:
                     rows.append({
                         "id": entry.id,
                         "prediction": entry.prediction,
+                        "model_name": entry.model_name,    
+                        "probability": entry.probability,
                         "original": f"data:image/png;base64,{img_str}",
                         "date": entry.created_at.strftime("%Y-%m-%d %H:%M:%S"),
                     })
@@ -32,6 +34,8 @@ class HistoryPage:
             columns = [
                 {"name": "original", "label": "Drawing", "field": "original", "align": "center"},
                 {"name": "prediction", "label": "Result", "field": "prediction", "sortable": True},
+                {"name": "model_name", "label": "Model", "field": "model_name", "sortable": True},
+                {"name": "probability", "label": "Confidence", "field": "probability", "sortable": True},
                 {"name": "date", "label": "Date", "field": "date", "sortable": True},
                 {"name": "delete", "label": "Actions", "field": "id"}
             ]

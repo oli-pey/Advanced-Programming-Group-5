@@ -195,6 +195,8 @@ class AdminHistoryPage:
                         "id": entry.id,
                         "username": username,
                         "prediction": entry.prediction,
+                        "model_name": entry.model_name,
+                        "probability": entry.probability,
                         "original": f"data:image/png;base64,{original_base64}",
                         "date": entry.created_at.strftime("%Y-%m-%d %H:%M:%S"),
                     })
