@@ -1,8 +1,14 @@
 import base64
+import auth
+
+print(auth.__file__)
+print(dir(auth))
+
 from nicegui import ui, app
 from DB.database import SessionLocal, PredictionEntry, User
 from web.layout import professional_layout
 from auth import create_user, get_user_by_username, hash_password
+
 
 
 def _is_current_user_admin() -> bool:
