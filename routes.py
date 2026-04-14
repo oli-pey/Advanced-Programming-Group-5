@@ -5,9 +5,8 @@ from web.index import LandingPage
 from web.history import HistoryPage
 from web.layout import professional_layout
 
-# import these only if they really exist
-# from web.admin import AdminDashboard
-# from web.admin_history import AdminHistoryPage
+from web.admin import AdminDashboard
+from web.admin import AdminHistoryPage
 
 
 def register_routes() -> None:
@@ -114,15 +113,16 @@ def register_routes() -> None:
             return
         HistoryPage().render()
 
-    # only enable these when the classes exist
-    # @ui.page('/admin')
-    # def admin_page():
-    #     if not require_session():
-    #         return
-    #     AdminDashboard().render()
 
-    # @ui.page('/admin/history')
-    # def admin_history_page():
-    #     if not require_session():
-    #         return
-    #     AdminHistoryPage().render()
+    @ui.page('/admin')
+    def admin_page():
+         if not require_session():
+             return
+         AdminDashboard().render()
+
+
+    @ui.page('/admin/history')
+    def admin_history_page():
+         if not require_session():
+             return
+         AdminHistoryPage().render()
