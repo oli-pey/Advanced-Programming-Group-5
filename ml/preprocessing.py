@@ -6,7 +6,7 @@ import torch
 MNIST_MEAN = 0.1307
 MNIST_STD = 0.3081
 
-def preprocess_png_bytes(image_bytes: bytes, invert: bool = False) -> torch.Tensor:
+def preprocess_png_bytes(image_bytes: bytes, invert: bool = True) -> torch.Tensor:
     img = Image.open(io.BytesIO(image_bytes)).convert("L")
 
     if invert:
