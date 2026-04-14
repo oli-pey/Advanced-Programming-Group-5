@@ -1,3 +1,4 @@
+# web/history.py
 import base64
 from nicegui import ui, app
 from DB.database import SessionLocal, PredictionEntry
@@ -13,7 +14,9 @@ class HistoryPage:
         def load_entries():
             db = SessionLocal()
             try:
-                entries = db.query(PredictionEntry).filter(PredictionEntry.user_id == user_id).order_by(PredictionEntry.created_at.desc()).all()
+                entries = db.query(PredictionEntry).filter(
+                    PredictionEntry.user_id == user_id
+                ).order_by(PredictionEntry.created_at.desc()).all()
                 rows = []
                 for entry in entries:
                     img_str = base64.b64encode(entry.original_image).decode("utf-8")
@@ -28,6 +31,30 @@ class HistoryPage:
                 return rows
             finally:
                 db.close()
+
+        # --- ADDED DELETE LOGIC ---
+        async def delete_entry(entry_id):
+            db = SessionLocal()
+            try:
+                # Ensure the user can only delete their own entries for security
+                entry = db.query(PredictionEntry).filter(
+                    PredictionEntry.id == entry_id,
+                    PredictionEntry.user_id == user_id
+                ).first()
+                
+                if entry:
+                    db.delete(entry)
+                    db.commit()
+                    ui.notify(f"Entry {entry_id} deleted.", type='info')
+                    # Refresh the table rows
+                    table.rows[:] = load_entries()
+                else:
+                    ui.notify("Delete failed: Entry not found or unauthorized.", type='negative')
+            except Exception as e:
+                ui.notify(f"Error: {e}", type='negative')
+            finally:
+                db.close()
+        # --------------------------
 
         with professional_layout("My History"):
             rows = load_entries()
@@ -49,4 +76,6 @@ class HistoryPage:
             table.add_slot("body-cell-delete", r'''
                 <q-td :props="props"><q-btn flat round icon="delete" color="red" @click="$parent.$emit('delete', props.value)" /></q-td>
             ''')
-            table.on('delete', lambda msg: ui.notify(f"Delete ID: {msg.args}")) # Add deletion logic here
+            
+            # --- CONNECT THE EVENT ---
+            table.on('delete', lambda msg: delete_entry(msg.args))
