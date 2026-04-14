@@ -1,16 +1,14 @@
-
-from nicegui import ui, app
-from auth import bootstrap_defaults
-import auth
-
-
-
+import os
+from nicegui import ui
+from routes import register_routes
 
 
 def main():
-    auth.bootstrap_defaults()  # This ensures 'admin' exists with admin rights
-    ui.run(storage_secret='PICK_A_SECURE_PASSWORD')
-
+    register_routes()
+    ui.run(
+    title="Digit Recognizer",
+    storage_secret=os.getenv("STORAGE_SECRET", "dev-secret-change-me"),
+)
 
 
 if __name__ in {"__main__", "__mp_main__"}:
