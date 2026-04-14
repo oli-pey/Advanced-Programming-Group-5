@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from PIL import Image
