@@ -5,7 +5,7 @@ import os
 from typing import Optional
 from nicegui import ui, app
 
-from web.admin import AdminDashboard, AdminHistoryPage
+
 from web.history import HistoryPage
 from web.index import LandingPage
 from web.layout import professional_layout
