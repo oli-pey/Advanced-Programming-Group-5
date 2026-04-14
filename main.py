@@ -1,5 +1,6 @@
 import io
-import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from PIL import Image
 from svglib.svglib import svg2rlg
@@ -164,7 +165,7 @@ class LandingPage:
                     prediction=predicted_digit,
                     model_name=model_used,        # Save algorithm name
                     probability=confidence_score,
-                    created_at=datetime.datetime.utcnow()
+                    created_at=datetime.now(ZoneInfo('Europe/Berlin'))
                 )
 
                 db.add(new_entry)
