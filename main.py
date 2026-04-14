@@ -6,6 +6,7 @@ import auth
 
 
 
+
 def main():
     auth.bootstrap_defaults()  # This ensures 'admin' exists with admin rights
     ui.run(storage_secret='PICK_A_SECURE_PASSWORD')

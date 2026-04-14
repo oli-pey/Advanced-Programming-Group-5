@@ -181,12 +181,14 @@ def bootstrap_defaults() -> None:
 
     @ui.page('/admin')
     def admin_page():
+        from web.admin import AdminDashboard
         if not require_session():
             return
         AdminDashboard().render()
 
     @ui.page('/admin/history')
     def admin_history_page():
+        from web.admin import AdminHistoryPage
         if not require_session():
             return
         AdminHistoryPage().render()

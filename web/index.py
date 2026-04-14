@@ -2,7 +2,7 @@ import io
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from PIL import Image
+from PIL import Image, ImageOps
 from nicegui import ui, app
 from reportlab.graphics import renderPM
 from svglib.svglib import svg2rlg
@@ -113,30 +113,27 @@ class LandingPage:
             return
 
         try:
-            full_svg = (
-                f'<svg xmlns="http://www.w3.org/2000/svg" '
-                f'width="500" height="500">{self.ii.content}</svg>'
-            )
-
+            # 1. Convert SVG to high-res PNG bytes
+            full_svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">{self.ii.content}</svg>'
             svg_file = io.BytesIO(full_svg.encode('utf-8'))
-
             drawing = svg2rlg(svg_file)
-            original_png_bytes = renderPM.drawToString(
-                drawing,
-                fmt="PNG"
-            )
+            original_png_bytes = renderPM.drawToString(drawing, fmt="PNG")
 
-            img = Image.open(
-                io.BytesIO(original_png_bytes)
-            ).convert('L')
+            # 2. Open image and convert to Grayscale ('L')
+            # This is necessary because MNIST models expect single-channel inputs
+            img = Image.open(io.BytesIO(original_png_bytes)).convert('L')
 
-            img_small = img.resize(
-                (28, 28),
-                Image.Resampling.LANCZOS
-            )
+            # 3. Resize to 28x28 (LANCZOS is good for preserving digit structure)
+            img_small = img.resize((28, 28), Image.Resampling.LANCZOS)
 
+            # 4. Invert the small image (from Black-on-White to White-on-Black)
+            # This aligns the image with the MNIST training data format
+            img_inverted = ImageOps.invert(img_small)
+
+            # 5. Save the processed image back into bytes
             small_buffer = io.BytesIO()
             img_small.save(small_buffer, format="PNG")
+            img_inverted.save(small_buffer, format="PNG")
             downsized_png_bytes = small_buffer.getvalue()
 
             recognizer = get_recognizer(self.selected_model)
