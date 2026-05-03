@@ -1,9 +1,15 @@
 from pathlib import Path
 import base64
 
+import json
+from DB.database import SandboxTrainedModel
+from sandbox_ml.config import TrainingConfig
+from sandbox_ml.training import train_sandbox_model, SandboxTrainingError
+from sandbox_ml.recognizer import SandboxModelRecognizer
+
 from nicegui import ui, app
 
-from DB.database import SessionLocal, SandboxClass, SandboxSample
+from DB.database import SessionLocal, SandboxClass, SandboxSample, SandboxTrainedModel
 from auth import require_session
 from sandbox.services import (
     SandboxError,
@@ -184,6 +190,9 @@ class SandboxDatasetPage:
 
                     self._render_upload_sample_card(classes, current_user_id)
                     self._render_draw_sample_card(classes, current_user_id)
+                    self._render_training_card(classes,samples, current_user_id)
+                    self._render_prediction_card(current_user_id)
+
 
                 with ui.column().classes('w-2/3 gap-4'):
                     self._render_classes_card(classes, current_user_id)
@@ -512,3 +521,305 @@ class SandboxDatasetPage:
                             ui.button('Delete', on_click=_delete_sample).props(
                                 'outline color=negative icon=delete'
                             )
+
+    def _render_training_card(self, classes, samples, current_user_id: int):
+        with ui.card().classes('w-full p-4 bg-slate-50 border border-slate-200'):
+            ui.label('Train Custom Model').classes('text-lg font-semibold mb-2')
+            ui.label('Requires at least 2 classes and at least 5 samples per class.').classes(
+                'text-sm text-slate-500'
+            )
+
+            model_type = ui.select(
+                options=['cnn', 'mlp', 'logreg'],
+                value='cnn',
+                label='Model type',
+            ).classes('w-full').props('outlined')
+
+            model_name = ui.input('Model name (optional)').classes('w-full').props('outlined')
+
+            epochs = ui.number('Epochs', value=10, min=1, max=100).classes('w-full').props('outlined')
+            batch_size = ui.number('Batch size', value=16, min=1, max=256).classes('w-full').props('outlined')
+            learning_rate = ui.number(
+                'Learning rate',
+                value=0.001,
+                min=0.00001,
+                max=1.0,
+                step=0.0001,
+            ).classes('w-full').props('outlined')
+
+            def handle_train():
+                config = TrainingConfig(
+                    epochs=int(epochs.value),
+                    batch_size=int(batch_size.value),
+                    learning_rate=float(learning_rate.value),
+                )
+
+                try:
+                    ui.notify('Training started. The page may pause briefly.', type='info')
+
+                    trained_model = train_sandbox_model(
+                        dataset_id=self.dataset_id,
+                        owner_user_id=current_user_id,
+                        model_type=model_type.value,
+                        model_name=(model_name.value or '').strip() or None,
+                        config=config,
+                    )
+
+                    ui.notify(f'Model trained successfully: {trained_model.name}', type='positive')
+                    ui.navigate.to(f'/sandbox/dataset/{self.dataset_id}')
+
+                except Exception as exc:
+                    ui.notify(f'Training failed: {exc}', type='negative')
+
+            ui.button('Train Model', on_click=handle_train).props('color=primary icon=model_training')
+
+    def _render_prediction_card(self, current_user_id: int):
+        db = SessionLocal()
+        try:
+            trained_models = (
+                db.query(SandboxTrainedModel)
+                .filter(
+                    SandboxTrainedModel.dataset_id == self.dataset_id,
+                    SandboxTrainedModel.owner_user_id == current_user_id,
+                )
+                .order_by(SandboxTrainedModel.created_at.desc())
+                .all()
+            )
+        finally:
+            db.close()
+
+        with ui.card().classes('w-full p-4 bg-slate-50 border border-slate-200'):
+            ui.label('Predict with Trained Model').classes('text-lg font-semibold mb-2')
+
+            if not trained_models:
+                ui.label('No trained models yet. Train a model first.').classes('text-slate-500')
+                return
+
+            model_options = {
+                str(m.id): f'{m.name} ({m.model_type})'
+                for m in trained_models
+            }
+
+            selected_model = ui.select(
+                options=model_options,
+                value=next(iter(model_options.keys())),
+                label='Trained model',
+            ).classes('w-full').props('outlined')
+
+            result_area = ui.column().classes('w-full gap-1')
+
+            uploaded_file_data = {'content': None, 'filename': None}
+            file_label = ui.label('No prediction image selected').classes('text-sm text-slate-500')
+
+            async def handle_prediction_upload(e):
+                try:
+                    safe_name = Path(e.file.name).name
+                    chunks = []
+                    async for chunk in e.file.iterate():
+                        chunks.append(chunk)
+                    content = b''.join(chunks)
+
+                    if not content:
+                        ui.notify('Uploaded file is empty.', type='negative')
+                        return
+
+                    uploaded_file_data['content'] = content
+                    uploaded_file_data['filename'] = safe_name
+                    file_label.set_text(f'Selected file: {safe_name}')
+                    ui.notify('Prediction image loaded.', type='positive')
+                except Exception as exc:
+                    ui.notify(f'Upload failed: {exc}', type='negative')
+
+            ui.upload(
+                label='Upload image for prediction',
+                on_upload=handle_prediction_upload,
+                auto_upload=True,
+                max_files=1,
+            ).classes('w-full').props('accept=.png,.jpg,.jpeg,.bmp,.webp')
+
+            def render_prediction_result(result: dict):
+                result_area.clear()
+                with result_area:
+                    ui.label(f'Predicted label: {result["predicted_label"]}').classes(
+                        'text-lg font-semibold text-green-700'
+                    )
+                    ui.label(f'Confidence: {result["confidence"]:.2%}').classes(
+                        'text-sm text-slate-600'
+                    )
+                    ui.label('Class probabilities').classes('font-medium mt-2')
+
+                    for label, prob in sorted(
+                            result['probabilities'].items(),
+                            key=lambda item: item[1],
+                            reverse=True,
+                    ):
+                        ui.label(f'{label}: {prob:.2%}').classes('text-sm text-slate-600')
+
+            def get_selected_model_record():
+                db = SessionLocal()
+                try:
+                    return (
+                        db.query(SandboxTrainedModel)
+                        .filter(
+                            SandboxTrainedModel.id == int(selected_model.value),
+                            SandboxTrainedModel.owner_user_id == current_user_id,
+                        )
+                        .first()
+                    )
+                finally:
+                    db.close()
+
+            def predict_uploaded_image():
+                if not uploaded_file_data['content']:
+                    ui.notify('Please upload an image first.', type='warning')
+                    return
+
+                model_record = get_selected_model_record()
+                if not model_record:
+                    ui.notify('Trained model not found.', type='negative')
+                    return
+
+                try:
+                    recognizer = SandboxModelRecognizer(model_record.checkpoint_path)
+                    result = recognizer.predict_from_image_bytes(uploaded_file_data['content'])
+                    render_prediction_result(result)
+                except Exception as exc:
+                    ui.notify(f'Prediction failed: {exc}', type='negative')
+
+            ui.button('Predict Uploaded Image', on_click=predict_uploaded_image).props(
+                'color=primary icon=psychology'
+            )
+
+            ui.separator().classes('my-4')
+            ui.label('Or draw an image for prediction').classes('font-medium')
+
+            canvas_id = f'prediction_canvas_{self.dataset_id}'
+            brush_id = f'prediction_brush_{self.dataset_id}'
+
+            ui.html(f'''
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+                <canvas id="{canvas_id}" width="500" height="500"
+                    style="width: 100%; max-width: 500px; height: auto; border: 1px solid #94a3b8; border-radius: 8px; background: #000; touch-action: none;">
+                </canvas>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="{brush_id}" style="font-size: 14px; color: #475569;">Brush size</label>
+                    <input id="{brush_id}" type="range" min="4" max="40" value="18" />
+                </div>
+            </div>
+            ''')
+
+            ui.add_body_html(f'''
+            <script>
+                setTimeout(function() {{
+                    const canvas = document.getElementById('{canvas_id}');
+                    const brush = document.getElementById('{brush_id}');
+                    if (!canvas || !brush) return;
+
+                    const ctx = canvas.getContext('2d');
+
+                    function resetCanvas() {{
+                        ctx.fillStyle = 'black';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }}
+
+                    resetCanvas();
+                    window['clear_{canvas_id}'] = resetCanvas;
+
+                    let drawing = false;
+                    let lastX = 0;
+                    let lastY = 0;
+
+                    function getPos(event) {{
+                        const rect = canvas.getBoundingClientRect();
+                        const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+                        const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+                        return {{
+                            x: (clientX - rect.left) * (canvas.width / rect.width),
+                            y: (clientY - rect.top) * (canvas.height / rect.height)
+                        }};
+                    }}
+
+                    function start(event) {{
+                        event.preventDefault();
+                        drawing = true;
+                        const pos = getPos(event);
+                        lastX = pos.x;
+                        lastY = pos.y;
+                    }}
+
+                    function draw(event) {{
+                        if (!drawing) return;
+                        event.preventDefault();
+                        const pos = getPos(event);
+
+                        ctx.strokeStyle = 'white';
+                        ctx.lineWidth = Number(brush.value);
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+
+                        ctx.beginPath();
+                        ctx.moveTo(lastX, lastY);
+                        ctx.lineTo(pos.x, pos.y);
+                        ctx.stroke();
+
+                        lastX = pos.x;
+                        lastY = pos.y;
+                    }}
+
+                    function stop(event) {{
+                        event.preventDefault();
+                        drawing = false;
+                    }}
+
+                    canvas.addEventListener('mousedown', start);
+                    canvas.addEventListener('mousemove', draw);
+                    canvas.addEventListener('mouseup', stop);
+                    canvas.addEventListener('mouseleave', stop);
+
+                    canvas.addEventListener('touchstart', start, {{passive: false}});
+                    canvas.addEventListener('touchmove', draw, {{passive: false}});
+                    canvas.addEventListener('touchend', stop, {{passive: false}});
+                    canvas.addEventListener('touchcancel', stop, {{passive: false}});
+                }}, 100);
+            </script>
+            ''')
+
+            async def clear_prediction_canvas():
+                await ui.run_javascript(f"window['clear_{canvas_id}']();")
+
+            async def predict_drawing():
+                try:
+                    data_url = await ui.run_javascript(
+                        f"document.getElementById('{canvas_id}').toDataURL('image/png');",
+                        timeout=5.0,
+                    )
+                    if not data_url or ',' not in data_url:
+                        ui.notify('Could not read canvas data.', type='negative')
+                        return
+
+                    content = base64.b64decode(data_url.split(',', 1)[1])
+                except Exception as exc:
+                    ui.notify(f'Could not read drawing: {exc}', type='negative')
+                    return
+
+                model_record = get_selected_model_record()
+                if not model_record:
+                    ui.notify('Trained model not found.', type='negative')
+                    return
+
+                try:
+                    recognizer = SandboxModelRecognizer(model_record.checkpoint_path)
+                    result = recognizer.predict_from_image_bytes(content)
+                    render_prediction_result(result)
+                except Exception as exc:
+                    ui.notify(f'Prediction failed: {exc}', type='negative')
+
+            with ui.row().classes('gap-2'):
+                ui.button('Clear Prediction Canvas', on_click=clear_prediction_canvas).props(
+                    'outline icon=delete_sweep'
+                )
+                ui.button('Predict Drawing', on_click=predict_drawing).props(
+                    'color=primary icon=draw'
+                )
+
+

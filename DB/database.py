@@ -10,6 +10,7 @@ from sqlalchemy import (
     String,
     Boolean,
     ForeignKey,
+    Float,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker, mapped_column
 from sqlalchemy.orm.attributes import Mapped
@@ -101,6 +102,55 @@ class SandboxSample(Base):
     dataset = relationship('SandboxDataset', back_populates='samples')
     sandbox_class = relationship('SandboxClass', back_populates='samples')
 
+class SandboxTrainingJob(Base):
+    __tablename__ = 'sandbox_training_jobs'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey('sandbox_datasets.id'), nullable=False)
+    owner_user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+
+    model_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default='queued', nullable=False)
+
+    epochs: Mapped[int] = mapped_column(Integer, nullable=False)
+    batch_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    learning_rate: Mapped[float] = mapped_column(Float, nullable=False)
+
+    train_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
+    val_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    dataset = relationship('SandboxDataset')
+    owner = relationship('User')
+
+
+class SandboxTrainedModel(Base):
+    __tablename__ = 'sandbox_trained_models'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey('sandbox_datasets.id'), nullable=False)
+    training_job_id: Mapped[int] = mapped_column(ForeignKey('sandbox_training_jobs.id'), nullable=False)
+    owner_user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    model_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    checkpoint_path: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    class_index_json: Mapped[str] = mapped_column(Text, nullable=False)
+    metrics_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+    is_shared: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_promoted_to_main_ui: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    dataset = relationship('SandboxDataset')
+    training_job = relationship('SandboxTrainingJob')
+    owner = relationship('User')
 
 
 Base.metadata.create_all(bind=engine)
