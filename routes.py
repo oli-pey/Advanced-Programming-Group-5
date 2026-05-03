@@ -7,6 +7,7 @@ from web.layout import professional_layout
 
 from web.admin import AdminDashboard
 from web.admin import AdminHistoryPage
+from web.sandbox import SandboxOverviewPage, SandboxDatasetPage
 
 
 def register_routes() -> None:
@@ -126,3 +127,11 @@ def register_routes() -> None:
          if not require_session():
              return
          AdminHistoryPage().render()
+
+    @ui.page('/sandbox')
+    def sandbox_page():
+        SandboxOverviewPage().render()
+
+    @ui.page('/sandbox/dataset/{dataset_id}')
+    def sandbox_dataset_page(dataset_id: int):
+        SandboxDatasetPage(dataset_id).render()
