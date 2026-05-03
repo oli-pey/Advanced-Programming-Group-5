@@ -2,6 +2,7 @@ import io
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+
 from PIL import Image, ImageOps
 from nicegui import ui, app
 from reportlab.graphics import renderPM
@@ -156,7 +157,7 @@ class LandingPage:
                     prediction=predicted_digit,
                     model_name=model_used,        # Save algorithm name
                     probability=confidence_score,
-                    created_at=datetime.now(ZoneInfo('Europe/Berlin'))
+                    created_at=datetime.now(ZoneInfo('Europe/Prague'))
                 )
 
                 db.add(new_entry)
