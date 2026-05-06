@@ -6,6 +6,6 @@ svglib>=1.1
 numpy>=1.21
 torch>=1.12
 torchvision>=0.13
-
+tzdata
 # Optional (used by svglib/report parsing on some systems)
 lxml>=4.9
