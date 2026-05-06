@@ -1,4 +1,8 @@
 from datetime import datetime
+import base64
+import hashlib
+import os
+from pathlib import Path
 
 from sqlalchemy import (
     create_engine,
@@ -16,6 +20,8 @@ from sqlalchemy.orm import declarative_base, relationship, sessionmaker, mapped_
 from sqlalchemy.orm.attributes import Mapped
 
 DATABASE_URL = "sqlite:///./mydata.db"
+DEFAULT_ADMIN_USERNAME = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
+DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin")
 
 engine = create_engine(
     DATABASE_URL,
@@ -24,6 +30,12 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+def _hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100_000)
+    return base64.b64encode(salt + digest).decode("utf-8")
 
 
 class User(Base):
@@ -153,4 +165,27 @@ class SandboxTrainedModel(Base):
     owner = relationship('User')
 
 
+def _seed_default_admin_user() -> None:
+    db = SessionLocal()
+    try:
+        if db.query(User).count() > 0:
+            return
+
+        admin_user = User(
+            username=DEFAULT_ADMIN_USERNAME,
+            password_hash=_hash_password(DEFAULT_ADMIN_PASSWORD),
+            is_admin=True,
+        )
+        db.add(admin_user)
+        db.commit()
+    finally:
+        db.close()
+
+
+database_path = Path(engine.url.database or "mydata.db")
+database_was_missing = not database_path.exists()
+
 Base.metadata.create_all(bind=engine)
+
+if database_was_missing:
+    _seed_default_admin_user()

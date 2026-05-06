@@ -1,5 +1,14 @@
 # Advanced-Programming-Group-5
 
+## Default Admin
+
+When the SQLite database is created for the first time, the app seeds a default admin account.
+
+- Username: `admin`
+- Password: `admin`
+
+You can override these by setting `DEFAULT_ADMIN_USERNAME` and `DEFAULT_ADMIN_PASSWORD` before starting the app.
+
 erDiagram
     USERS ||--o{ ENTRIES : "has many"
     
