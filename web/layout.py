@@ -35,6 +35,7 @@ def professional_layout(page_title: str):
         if is_authenticated:
             with ui.row().classes('gap-2'):
                 ui.button('Home', on_click=lambda: ui.navigate.to('/')).props('flat icon=home')
+                ui.button('Sandbox', on_click=lambda: ui.navigate.to('/sandbox')).props('flat icon=science')
                 ui.button('History', on_click=lambda: ui.navigate.to('/history')).props('flat icon=history')
                 if is_admin:
                     ui.button('Admin', on_click=lambda: ui.navigate.to('/admin')).props('flat icon=admin_panel_settings')
