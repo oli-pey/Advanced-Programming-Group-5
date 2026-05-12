@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from io import BytesIO
 from typing import Callable
 
 import torch
@@ -37,14 +37,14 @@ class SandboxImageDataset(Dataset):
 
     def __getitem__(self, index: int):
         sample = self.samples[index]
-        image_path = Path(sample.image_path)
 
-        if not image_path.exists():
-            raise FileNotFoundError(f'Image file not found: {image_path}')
+        if not sample.image_data:
+            raise ValueError(f'Sample {sample.id} has no image data.')
 
-        image = Image.open(image_path).convert('L')
+        image = Image.open(BytesIO(sample.image_data)).convert('L')
         x = self.transform(image)
         y = self.class_to_index[sample.class_id]
+
         return x, torch.tensor(y, dtype=torch.long)
 
 

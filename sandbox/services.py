@@ -5,7 +5,7 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 from DB.database import SandboxDataset, SandboxClass, SandboxSample
-from sandbox.storage import save_sample_file, delete_file_if_exists
+#from sandbox.storage import save_sample_file, delete_file_if_exists
 
 
 class SandboxError(Exception):
@@ -79,8 +79,6 @@ def create_dataset(
 
 
 def delete_dataset(db: Session, dataset: SandboxDataset) -> None:
-    for sample in list(dataset.samples):
-        delete_file_if_exists(sample.image_path)
     db.delete(dataset)
     db.commit()
 
@@ -119,8 +117,6 @@ def create_class(
 
 
 def delete_class(db: Session, sandbox_class: SandboxClass) -> None:
-    for sample in list(sandbox_class.samples):
-        delete_file_if_exists(sample.image_path)
     db.delete(sandbox_class)
     db.commit()
 
@@ -147,7 +143,10 @@ def create_sample(
 
     sandbox_class = (
         db.query(SandboxClass)
-        .filter(SandboxClass.id == class_id, SandboxClass.dataset_id == dataset.id)
+        .filter(
+            SandboxClass.id == class_id,
+            SandboxClass.dataset_id == dataset.id,
+        )
         .first()
     )
 
@@ -156,17 +155,12 @@ def create_sample(
 
     _validate_image_content(content)
 
-    image_path = save_sample_file(
-        user_id=dataset.owner_user_id,
-        dataset_id=dataset.id,
-        filename=filename,
-        content=content,
-    )
-
     sample = SandboxSample(
         dataset_id=dataset.id,
         class_id=class_id,
-        image_path=image_path,
+        image_data=content,
+        image_filename=filename,
+        image_mime_type='image/png',
         source_type=source_type,
         user_note=clean_text(user_note),
     )
@@ -174,10 +168,10 @@ def create_sample(
     db.add(sample)
     db.commit()
     db.refresh(sample)
+
     return sample
 
 
 def delete_sample(db: Session, sample: SandboxSample) -> None:
-    delete_file_if_exists(sample.image_path)
     db.delete(sample)
     db.commit()

@@ -508,16 +508,23 @@ class SandboxDatasetPage:
                 with ui.grid(columns=2).classes('w-full gap-4'):
                     for s in samples:
                         with ui.card().classes('p-3 border border-slate-200'):
-                            image_file = Path(s.image_path)
-                            if image_file.exists():
-                                ui.image(image_file.as_posix()).classes(
+                            if s.image_data:
+                                encoded = base64.b64encode(s.image_data).decode('utf-8')
+                                mime_type = s.image_mime_type or 'image/png'
+
+                                ui.image(f'data:{mime_type};base64,{encoded}').classes(
                                     'w-full h-48 object-contain bg-slate-50 rounded'
                                 )
                             else:
-                                ui.label('Missing File').classes('text-red-500')
+                                ui.label('Image data missing.').classes('text-red-500')
 
-                            ui.label(f'Class: {class_name_map.get(s.class_id, "Unknown")}')
-                            
+                            ui.label(
+                                f'Class: {class_name_map.get(s.class_id, "Unknown")}'
+                            ).classes('font-medium')
+                            ui.label(f'Source: {s.source_type}').classes('text-sm text-slate-500')
+                            if s.user_note:
+                                ui.label(s.user_note).classes('text-sm text-slate-600')
+
                             def _delete_sample(sample_id=s.id):
                                 db = SessionLocal()
                                 try:
