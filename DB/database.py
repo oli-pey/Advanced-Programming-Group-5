@@ -41,29 +41,29 @@ def _hash_password(password: str) -> str:
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(100), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
-    is_admin = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
-    entries = relationship("PredictionEntry", back_populates="user")
+    entries: Mapped[list["PredictionEntry"]] = relationship("PredictionEntry", back_populates="user")
 
 
 class PredictionEntry(Base):
-    __tablename__ = "entries"
+    __tablename__ = "input_history"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
 
-    original_image = Column(LargeBinary, nullable=False)
-    downsized_image = Column(LargeBinary, nullable=False)
-    prediction = Column(Text, nullable=False)
-    model_name = Column(String(50), nullable=True)
-    probability = Column(Text, nullable=True)     
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    original_image: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    downsized_image: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    prediction: Mapped[str] = mapped_column(Text, nullable=False)
+    model_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    probability: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
-    user = relationship("User", back_populates="entries")
+    user: Mapped["User"] = relationship("User", back_populates="entries")
 
 # Add this snippet to DB/database.py if you lost the sandbox table classes.
 # Make sure these imports exist:
