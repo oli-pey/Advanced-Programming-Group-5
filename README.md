@@ -272,6 +272,56 @@ Advanced-Programming-Group-5/
 ├── sandbox_ml/
 └── README.md
 ```
+---
+## 1. Testing Procedure Overview
+The strategy is divided into three distinct layers, moving from high-level user flows to granular code logic and finally to end-to-end component integration.
+
+---
+
+## A. Manual Feature Test (UAT)
+The manual feature test ensures the "happy path" is functional and the user experience is seamless. This is the primary verification step before any live demonstration.
+
+### Checklist & User Flow:
+- [ ] **Authentication:** Successfully register a new account and login.
+- [ ] **Dataset Initialization:** Create a new sandbox dataset.
+- [ ] **Schema Definition:** Define and create specific classes for the ML task.
+- [ ] **Sample Management:** - Upload sample images.
+    - Draw/Annotate samples.
+    - Delete samples to ensure cleanup logic works.
+- [ ] **Model Training:** Trigger the training process for the defined dataset.
+- [ ] **Inference:** Predict outcomes using the newly trained model.
+- [ ] **Specialized Testing:** Verify the MNIST digit recognizer specifically.
+- [ ] **Persistence:** Restart the application/container and verify that the database state is maintained.
+
+---
+
+## B. Unit Tests
+Unit tests focus on isolating small, stateless functions to ensure they produce the correct output for given inputs. These tests do not require the UI or a live database.
+
+### Core Focus Areas:
+- **Data Processing:** Label normalization and validation.
+- **File System:** Logic for creating storage paths and directory structures.
+- **Validation:** Image format validation and dataset integrity checks prior to training.
+- **ML Logic:** Model instantiation by type and ensuring prediction results match the expected JSON/Data format.
+
+### Target Modules:
+- `sandbox/services.py` (Business logic)
+- `sandbox/storage.py` (IO pathing logic)
+- `sandbox_ml/models.py` (Architecture definitions)
+- `sandbox_ml/training.py` (Validation helpers and data loaders)
+
+---
+
+## C. Integration Tests
+Integration tests verify that different modules (Services, Database, and ML Engine) communicate correctly. These tests simulate real-world usage without manual intervention.
+
+### Implementation Requirements:
+- **Environment:** Use a temporary **SQLite** database and a dedicated temporary image folder to ensure tests are idempotent and do not pollute production data.
+- **End-to-End Flow:**
+    1. Programmatically create a dataset, classes, and samples in the test DB.
+    2. Execute a "tiny" training run using low-resolution fake images to verify the pipeline.
+    3. Save the resulting model to the temporary disk.
+    4. Load the saved model and perform a prediction using raw image bytes.
 
 ---
 
