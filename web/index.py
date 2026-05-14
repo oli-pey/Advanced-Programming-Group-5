@@ -139,7 +139,7 @@ class LandingPage:
             img = Image.open(io.BytesIO(original_png_bytes)).convert('L')
             
             # Resize to 28x28 (LANCZOS preserves structure)
-            img_small = img.resize((28, 28), Image.Resampling.LANCZOS)
+            img_small = img.resize((28, 28), Image.Resampling.BILINEAR)
 
             # Invert colors (MNIST is White-on-Black)
             img_inverted = ImageOps.invert(img_small)
