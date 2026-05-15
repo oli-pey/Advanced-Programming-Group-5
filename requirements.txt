@@ -8,6 +8,6 @@ torch>=1.12
 torchvision>=0.13
 tzdata
 pytest>=7.0
-pytestmock>=3.0
+pytest-mock>=3.0
 # Optional (used by svglib/report parsing on some systems)
 lxml>=4.9
