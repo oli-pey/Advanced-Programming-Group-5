@@ -35,11 +35,13 @@ class HistoryPage:
                     .order_by(PredictionEntry.created_at.desc())
                     .all()
                 )
-                
+
                 rows = []
                 for entry in entries:
                     # Convert BLOB to base64 string
-                    img_b64 = base64.b64encode(entry.original_image).decode("utf-8")
+                    img_b64 = base64.b64encode(
+                        entry.original_image
+                    ).decode("utf-8")
                     rows.append({
                         "id": entry.id,
                         "prediction": entry.prediction,
@@ -55,12 +57,13 @@ class HistoryPage:
         async def delete_entry(entry_id: int):
             """
             Permanently deletes a specific entry.
-            Verifies ownership (user_id) again before deleting to prevent 
+            Verifies ownership (user_id) again before deleting to prevent
             ID-manipulation attacks.
             """
             db = SessionLocal()
             try:
-                # Critical security filter: filter by both entry ID AND owner ID
+                # Critical security filter: filter by both entry ID and
+                # owner ID
                 entry = db.query(PredictionEntry).filter(
                     PredictionEntry.id == entry_id,
                     PredictionEntry.user_id == user_id
@@ -70,12 +73,12 @@ class HistoryPage:
                     db.delete(entry)
                     db.commit()
                     ui.notify(f"Entry {entry_id} deleted.", type='info')
-                    
+
                     # Refresh the table display by updating the rows attribute
                     table.rows[:] = load_entries()
                 else:
                     ui.notify(
-                        "Delete failed: Entry not found or unauthorized.", 
+                        "Delete failed: Entry not found or unauthorized.",
                         type='negative'
                     )
             except Exception as e:
@@ -85,38 +88,38 @@ class HistoryPage:
 
         with professional_layout("My History"):
             rows = load_entries()
-            
+
             # Table column definitions
             columns = [
                 {"name": "id", "label": "ID", "field": "id", "sortable": True},
                 {
-                    "name": "original", 
-                    "label": "Drawing", 
-                    "field": "original", 
+                    "name": "original",
+                    "label": "Drawing",
+                    "field": "original",
                     "align": "center"
                 },
                 {
-                    "name": "prediction", 
-                    "label": "Result", 
-                    "field": "prediction", 
+                    "name": "prediction",
+                    "label": "Result",
+                    "field": "prediction",
                     "sortable": True
                 },
                 {
-                    "name": "model_name", 
-                    "label": "Model", 
-                    "field": "model_name", 
+                    "name": "model_name",
+                    "label": "Model",
+                    "field": "model_name",
                     "sortable": True
                 },
                 {
-                    "name": "probability", 
-                    "label": "Confidence", 
-                    "field": "probability", 
+                    "name": "probability",
+                    "label": "Confidence",
+                    "field": "probability",
                     "sortable": True
                 },
                 {
-                    "name": "date", 
-                    "label": "Date", 
-                    "field": "date", 
+                    "name": "date",
+                    "label": "Date",
+                    "field": "date",
                     "sortable": True
                 },
                 {"name": "delete", "label": "Actions", "field": "id"}
@@ -124,16 +127,16 @@ class HistoryPage:
 
             # Main Data Table
             table = ui.table(
-                columns=columns, 
-                rows=rows, 
+                columns=columns,
+                rows=rows,
                 row_key="id"
             ).classes("w-full shadow-sm border border-slate-200 rounded-lg")
 
             # UI Slot: Render the image preview
             table.add_slot("body-cell-original", r'''
                 <q-td :props="props">
-                    <img :src="props.value" 
-                         style="width:50px;height:50px;object-fit:contain;" 
+                    <img :src="props.value"
+                         style="width:50px;height:50px;object-fit:contain;"
                          class="rounded border bg-white" />
                 </q-td>
             ''')
@@ -141,16 +144,16 @@ class HistoryPage:
             # UI Slot: Render the delete button and emit a Vue event
             table.add_slot("body-cell-delete", r'''
                 <q-td :props="props">
-                    <q-btn flat round icon="delete" color="red" 
+                    <q-btn flat round icon="delete" color="red"
                            @click="$parent.$emit('delete', props.value)" />
                 </q-td>
             ''')
 
-            # Event Bridge: Listen for the 'delete' signal from the Vue template
+            # Event Bridge: Listen for delete signal from Vue template
             table.on('delete', lambda msg: delete_entry(msg.args))
 
             # Empty state helper
             if not rows:
-                ui.label("You haven't made any predictions yet.").classes(
-                    "mt-10 text-center text-slate-400 italic"
-                )
+                ui.label(
+                    "You haven't made any predictions yet."
+                ).classes("mt-10 text-center text-slate-400 italic")

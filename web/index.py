@@ -80,7 +80,7 @@ class LandingPage:
 
     def handle_mouse(self, e):
         """
-        Manage drawing logic. Converts mouse movements into 
+        Manage drawing logic. Converts mouse movements into
         SVG path elements displayed on the interactive image.
         """
         if e.type == 'mousedown':
@@ -113,7 +113,7 @@ class LandingPage:
 
     async def process_drawing(self):
         """
-        Pre-process the drawing (resize/invert), run ML inference, 
+        Pre-process the drawing (resize/invert), run ML inference,
         and save results to the database.
         """
         if not self.ii.content:
@@ -130,14 +130,14 @@ class LandingPage:
             svg_header = '<svg xmlns="http://www.w3.org/2000/svg" '
             svg_size = 'width="500" height="500">'
             full_svg = f'{svg_header}{svg_size}{self.ii.content}</svg>'
-            
+
             svg_file = io.BytesIO(full_svg.encode('utf-8'))
             drawing = svg2rlg(svg_file)
             original_png_bytes = renderPM.drawToString(drawing, fmt="PNG")
 
             # 2. Image Processing for ML (MNIST-style)
             img = Image.open(io.BytesIO(original_png_bytes)).convert('L')
-            
+
             # Resize to 28x28 (LANCZOS preserves structure)
             img_small = img.resize((28, 28), Image.Resampling.BILINEAR)
 
