@@ -14,7 +14,7 @@ class LogRegRecognizer(DigitRecognizer):
         self.model.to(self.device).eval()
 
     def predict_from_png_bytes(self, image_bytes: bytes) -> PredictionResult:
-        x = preprocess_png_bytes(image_bytes).to(self.device)
+        x = preprocess_png_bytes(image_bytes, invert=True).to(self.device)
 
         with torch.inference_mode():
             logits = self.model(x)
