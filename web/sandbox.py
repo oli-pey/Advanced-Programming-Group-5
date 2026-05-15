@@ -5,9 +5,9 @@ import json
 from nicegui import ui, app
 
 from DB.database import (
-    SessionLocal, 
-    SandboxClass, 
-    SandboxSample, 
+    SessionLocal,
+    SandboxClass,
+    SandboxSample,
     SandboxTrainedModel
 )
 from auth import require_session
@@ -32,7 +32,7 @@ from web.layout import professional_layout
 class SandboxOverviewPage:
     """
     Renders the high-level overview of a user's machine learning datasets.
-    
+
     This page allows users to list existing datasets, create new ones,
     and manage dataset-level sharing and deletion.
     """
@@ -52,10 +52,14 @@ class SandboxOverviewPage:
             ).classes('text-lg text-slate-600 mb-4')
 
             # --- Dataset Creation Form ---
-            with ui.card().classes('w-full p-4 mb-6 bg-slate-50 border border-slate-200'):
+            with ui.card().classes(
+                'w-full p-4 mb-6 bg-slate-50 border border-slate-200'
+            ):
                 ui.label('Create New Dataset').classes('text-xl font-semibold mb-3')
                 name_input = ui.input('Dataset name').classes('w-full').props('outlined')
-                desc_input = ui.textarea('Description (optional)').classes('w-full').props('outlined')
+                desc_input = ui.textarea(
+                    'Description (optional)'
+                ).classes('w-full').props('outlined')
                 shared_toggle = ui.switch('Share dataset with everyone').classes('mt-2')
 
                 def handle_create_dataset():
@@ -94,7 +98,9 @@ class SandboxOverviewPage:
 
             ui.label('My Datasets').classes('text-xl font-semibold mb-2')
             if not datasets:
-                ui.label('No datasets yet. Create your first one above.').classes('text-slate-500')
+                ui.label(
+                    'No datasets yet. Create your first one above.'
+                ).classes('text-slate-500')
                 return
 
             for dataset in datasets:
@@ -104,9 +110,9 @@ class SandboxOverviewPage:
                             ui.label(dataset.name).classes('text-lg font-semibold')
                             if dataset.description:
                                 ui.label(dataset.description).classes('text-slate-600')
-                            ui.label(f'Shared: {"Yes" if dataset.is_shared else "No"}').classes(
-                                'text-xs text-slate-500'
-                            )
+                            ui.label(
+                                f'Shared: {"Yes" if dataset.is_shared else "No"}'
+                            ).classes('text-xs text-slate-500')
 
                         with ui.row().classes('gap-2'):
                             ui.button(
@@ -138,7 +144,7 @@ class SandboxOverviewPage:
 class SandboxDatasetPage:
     """
     Renders the detail page for a specific dataset.
-    
+
     Manages data ingestion (upload/draw), model training, and real-time prediction.
     """
 
@@ -181,20 +187,27 @@ class SandboxDatasetPage:
 
             if dataset_desc:
                 ui.label(dataset_desc).classes('text-slate-600')
-            ui.label(f'Shared: {"Yes" if dataset_shared else "No"}').classes(
-                'text-sm text-slate-500 mb-4'
-            )
+            ui.label(
+                f'Shared: {"Yes" if dataset_shared else "No"}'
+            ).classes('text-sm text-slate-500 mb-4')
 
             with ui.row().classes('w-full gap-6 items-start'):
                 # Left Column: Management & Actions
                 with ui.column().classes('w-1/3 gap-4'):
-                    with ui.card().classes('w-full p-4 bg-slate-50 border border-slate-200'):
+                    with ui.card().classes(
+                        'w-full p-4 bg-slate-50 border border-slate-200'
+                    ):
                         ui.label('Add Class').classes('text-lg font-semibold mb-2')
-                        class_name = ui.input('Class label').classes('w-full').props('outlined')
-                        class_desc = ui.textarea('Description (optional)').classes('w-full').props('outlined')
+                        class_name = ui.input('Class label').classes(
+                            'w-full'
+                        ).props('outlined')
+                        class_desc = ui.textarea(
+                            'Description (optional)'
+                        ).classes('w-full').props('outlined')
 
                         def handle_add_class():
-                            """Creates a new classification category for this dataset."""
+                            """Creates a new classification category for
+                            this dataset."""
                             name = ' '.join((class_name.value or '').strip().split())
                             if not name:
                                 ui.notify('Please enter a class label.', type='warning')
@@ -347,12 +360,17 @@ class SandboxDatasetPage:
             ui.html(f"""
             <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
                 <canvas id="{canvas_id}" width="500" height="500"
-                    style="width: 100%; max-width: 500px; height: auto; border: 1px solid #94a3b8; 
-                    border-radius: 8px; background: #000; touch-action: none;">
+                    style="width: 100%; max-width: 500px; height: auto;
+                    border: 1px solid #94a3b8; border-radius: 8px;
+                    background: #000; touch-action: none;">
                 </canvas>
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <label for="{brush_id}" style="font-size: 14px; color: #475569;">Brush size</label>
-                    <input id="{brush_id}" type="range" min="4" max="40" value="18" />
+                    <label for="{brush_id}"
+                           style="font-size: 14px; color: #475569;">
+                        Brush size
+                    </label>
+                    <input id="{brush_id}" type="range"
+                           min="4" max="40" value="18" />
                 </div>
             </div>
             """)
@@ -547,14 +565,18 @@ class SandboxDatasetPage:
         """Training configuration panel for CNN, MLP, or LogReg models."""
         with ui.card().classes('w-full p-4 bg-slate-50 border border-slate-200'):
             ui.label('Train Custom Model').classes('text-lg font-semibold mb-2')
-            
+
             model_type = ui.select(
                 options=['cnn', 'mlp', 'logreg'], value='cnn', label='Architecture'
             ).classes('w-full').props('outlined')
 
             model_name = ui.input('Model name').classes('w-full').props('outlined')
             epochs = ui.number('Epochs', value=10, min=1).classes('w-full').props('outlined')
-            lr = ui.number('Learning rate', value=0.001, step=0.0001).classes('w-full').props('outlined')
+            lr = ui.number(
+                'Learning rate',
+                value=0.001,
+                step=0.0001
+            ).classes('w-full').props('outlined')
 
             def handle_train():
                 """Triggers the backend training pipeline."""
@@ -612,8 +634,10 @@ class SandboxDatasetPage:
             def render_result(result: dict):
                 result_area.clear()
                 with result_area:
-                    ui.label(f'Result: {result["predicted_label"]}').classes('text-green-700 font-bold')
+                    ui.label(
+                        f'Result: {result["predicted_label"]}'
+                    ).classes('text-green-700 font-bold')
                     ui.label(f'Confidence: {result["confidence"]:.2%}')
 
-            # Code for Prediction logic (Upload/Draw) omitted for brevity 
+            # Code for Prediction logic (Upload/Draw) omitted for brevity
             # but follows the same pattern as Sample creation.

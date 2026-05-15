@@ -11,8 +11,8 @@ def logout_user():
 @contextmanager
 def professional_layout(page_title: str):
     """
-    A context manager that provides a consistent, professional-grade 
-    UI shell for the application. Includes a responsive header with 
+    A context manager that provides a consistent, professional-grade
+    UI shell for the application. Includes a responsive header with
     navigation, custom color themes, and a centered content card.
 
     Args:

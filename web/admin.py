@@ -70,7 +70,9 @@ class AdminDashboard:
 
             with user_management_container:
                 if not users:
-                    ui.label("No users found.").classes("text-slate-500 italic")
+                    ui.label("No users found.").classes(
+                        "text-slate-500 italic"
+                    )
                     return
 
                 for user in users:
@@ -120,13 +122,15 @@ class AdminDashboard:
                     return
 
                 if target_user.id == current_user_id and not is_admin:
-                    # SQLAlchemy requires == True for Boolean column expressions
+                    # SQLAlchemy requires == True for Boolean column
+                    # expressions
                     admin_count = db.query(User).filter(
                         User.is_admin == True  # noqa: E712
                     ).count()
                     if admin_count <= 1:
                         ui.notify(
-                            "You cannot remove admin rights from the last account.",
+                            "You cannot remove admin rights from the "
+                            "last account.",
                             type="warning"
                         )
                         refresh_user_management()
