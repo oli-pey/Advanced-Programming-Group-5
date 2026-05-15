@@ -8,10 +8,14 @@ from nicegui import ui, app
 from DB.database import SessionLocal, User
 
 
-def hash_password(password: str) -> str:
+def get_password_hash(password: str) -> str:
     salt = os.urandom(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100_000)
     return base64.b64encode(salt + digest).decode("utf-8")
+
+
+def hash_password(password: str) -> str:
+    return get_password_hash(password)
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
@@ -48,7 +52,7 @@ def create_user(username: str, password: str, is_admin: bool = False) -> User:
 
         user = User(
             username=username,
-            password_hash=hash_password(password),
+            password_hash=get_password_hash(password),
             is_admin=is_admin,
         )
         db.add(user)

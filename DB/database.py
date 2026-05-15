@@ -16,7 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Float,
 )
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker, mapped_column
+from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker, mapped_column
 from sqlalchemy.orm.attributes import Mapped
 
 DATABASE_URL = "sqlite:///./mydata.db"
@@ -54,16 +54,47 @@ class PredictionEntry(Base):
     __tablename__ = "input_history"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
 
-    original_image: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    downsized_image: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    original_image: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    downsized_image: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     prediction: Mapped[str] = mapped_column(Text, nullable=False)
     model_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     probability: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     user: Mapped["User"] = relationship("User", back_populates="entries")
+
+    def __init__(self, **kwargs):
+        digit = kwargs.pop("digit", None)
+        confidence = kwargs.pop("confidence", None)
+
+        if digit is not None and "prediction" not in kwargs:
+            kwargs["prediction"] = str(digit)
+        if confidence is not None and "probability" not in kwargs:
+            kwargs["probability"] = str(confidence)
+
+        super().__init__(**kwargs)
+
+    @property
+    def digit(self) -> int | None:
+        if self.prediction is None:
+            return None
+        return int(self.prediction)
+
+    @digit.setter
+    def digit(self, value: int | None) -> None:
+        self.prediction = None if value is None else str(value)
+
+    @property
+    def confidence(self) -> float | None:
+        if self.probability is None:
+            return None
+        return float(self.probability)
+
+    @confidence.setter
+    def confidence(self, value: float | None) -> None:
+        self.probability = None if value is None else str(value)
 
 # Add this snippet to DB/database.py if you lost the sandbox table classes.
 # Make sure these imports exist:
@@ -75,7 +106,7 @@ class SandboxDataset(Base):
     __tablename__ = 'sandbox_datasets'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    owner_user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    owner_user_id: Mapped[int | None] = mapped_column(ForeignKey('users.id'), nullable=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_shared: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -98,6 +129,20 @@ class SandboxClass(Base):
 
     dataset = relationship('SandboxDataset', back_populates='classes')
     samples = relationship('SandboxSample', back_populates='sandbox_class', cascade='all, delete-orphan')
+
+    def __init__(self, **kwargs):
+        label = kwargs.pop("label", None)
+        if label is not None and "name" not in kwargs:
+            kwargs["name"] = label
+        super().__init__(**kwargs)
+
+    @property
+    def label(self) -> str:
+        return self.name
+
+    @label.setter
+    def label(self, value: str) -> None:
+        self.name = value
 
 
 class SandboxSample(Base):
@@ -167,10 +212,11 @@ class SandboxTrainedModel(Base):
     owner = relationship('User')
 
 
-def _seed_default_admin_user() -> None:
-    db = SessionLocal()
+def _seed_default_admin_user(db: Session | None = None) -> None:
+    own_session = db is None
+    session = db or SessionLocal()
     try:
-        if db.query(User).count() > 0:
+        if session.query(User).count() > 0:
             return
 
         admin_user = User(
@@ -178,10 +224,11 @@ def _seed_default_admin_user() -> None:
             password_hash=_hash_password(DEFAULT_ADMIN_PASSWORD),
             is_admin=True,
         )
-        db.add(admin_user)
-        db.commit()
+        session.add(admin_user)
+        session.commit()
     finally:
-        db.close()
+        if own_session:
+            session.close()
 
 
 database_path = Path(engine.url.database or "mydata.db")
