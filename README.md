@@ -325,7 +325,7 @@ Integration tests verify that different modules (Services, Database, and ML Engi
 
 Starts the NiceGUI application and registers all routes.
 
-### `routes.py`
+### `web/routes.py`
 
 Defines the web routes for:
 
@@ -338,7 +338,7 @@ Defines the web routes for:
 - Sandbox overview
 - Sandbox dataset pages
 
-### `auth.py`
+### `web/auth.py`
 
 Handles authentication-related functionality, including:
 
@@ -460,7 +460,7 @@ The main page provides an interactive drawing canvas where users can draw a digi
 ```text
 web/index.py
 main.py
-routes.py
+web/routes.py
 ```
 
 ---
@@ -550,8 +550,8 @@ The application supports login, account creation, password hashing, and user-spe
 ### Responsible Files
 
 ```text
-auth.py
-routes.py
+web/auth.py
+web/routes.py
 DB/database.py
 ```
 
@@ -571,8 +571,8 @@ Admin-only views are available through dedicated routes. Admin access is checked
 
 ```text
 web/admin.py
-routes.py
-auth.py
+web/routes.py
+web/auth.py
 DB/database.py
 ```
 
