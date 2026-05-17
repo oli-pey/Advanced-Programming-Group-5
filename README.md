@@ -204,41 +204,67 @@ Users can:
 ```text
 Advanced-Programming-Group-5/
 │
-├── main.py
-├── routes.py
-├── auth.py
-├── requirements.txt
+├── main.py                        
+├── requirements.txt               
+├── setup.cfg                      
+├── README.md
+├── testing.md
+├── .gitignore
+├── Relationship models programing.drawio
 │
-├── DB/
-│   ├── database.py
-│   └── database_model.md
+├── DB/                            
+│   ├── database.py                
+│   ├── database_model.md
+│   └── __init__.py
 │
-├── ml/
+├── ml/                            
 │   ├── base.py
 │   ├── preprocessing.py
 │   ├── registry.py
 │   ├── result.py
+│   ├── __init__.py
 │   │
-│   ├── models/
+│   ├── models/                    
 │   │   ├── cnn_model.py
-│   │   ├── cnn_mnist.pt
 │   │   ├── logreg_model.py
+│   │   ├── cnn_mnist.pt
 │   │   └── logreg_mnist.pt
 │   │
-│   └── recognizers/
+│   └── recognizers/               
 │       ├── cnn_recognizer.py
 │       └── logreg_recognizer.py
 │
-├── web/
+├── sandbox/                       
+│   ├── services.py
+│   ├── storage.py                 
+│   └── __init__.py
+│
+├── sandbox_ml/                    
+│   ├── config.py
+│   ├── dataset.py
+│   ├── models.py
+│   ├── recognizer.py
+│   ├── training.py
+│   └── __init__.py
+│
+├── web/                           
+│   ├── routes.py                  
+│   ├── auth.py                    
+│   ├── layout.py                  
 │   ├── index.py
 │   ├── history.py
 │   ├── admin.py
-│   ├── layout.py
-│   └── sandbox.py
+│   ├── sandbox.py                 
+│   └── __init__.py
 │
-├── sandbox/
-├── sandbox_ml/
-└── README.md
+├── testing/                      
+│   ├── test_auth.py
+│   ├── test_database.py
+│   ├── test_index.py
+│   ├── test_integration.py
+│   ├── test_preprocessing.py
+│   ├── test_registry.py
+│   └── __init__.py
 ```
 ---
 ## 1. Testing Procedure Overview
