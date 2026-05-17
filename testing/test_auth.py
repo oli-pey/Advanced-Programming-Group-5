@@ -1,4 +1,4 @@
-from auth import get_password_hash, verify_password
+from web.auth import get_password_hash
 
 
 def test_tc004_password_hashing_uniqueness():

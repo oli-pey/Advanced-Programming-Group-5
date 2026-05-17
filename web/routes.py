@@ -1,6 +1,6 @@
 from nicegui import ui, app
 
-from auth import authenticate_user, create_user, get_user_by_username, require_session
+from web.auth import authenticate_user, create_user, get_user_by_username, require_session
 from web.index import LandingPage
 from web.history import HistoryPage
 from web.layout import professional_layout

@@ -8,7 +8,7 @@ from sandbox_ml.recognizer import SandboxModelRecognizer
 from nicegui import ui, app
 
 from DB.database import SessionLocal, SandboxClass, SandboxSample, SandboxTrainedModel
-from auth import require_session
+from web.auth import require_session
 from sandbox.services import (
     SandboxError,
     create_class,

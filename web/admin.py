@@ -2,8 +2,7 @@ import base64
 
 from nicegui import app, ui
 
-import auth
-from auth import create_user, get_user_by_username, hash_password
+from web.auth import create_user, get_user_by_username, hash_password
 from DB.database import PredictionEntry, SessionLocal, User
 from web.layout import professional_layout
 

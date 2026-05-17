@@ -2,7 +2,7 @@ import os
 
 from nicegui import ui
 
-from routes import register_routes
+from web.routes import register_routes
 
 
 def main():
