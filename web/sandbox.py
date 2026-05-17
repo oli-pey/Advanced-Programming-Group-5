@@ -1,19 +1,14 @@
 from pathlib import Path
 import base64
-import json
+
+from sandbox_ml.config import TrainingConfig
+from sandbox_ml.training import train_sandbox_model
+from sandbox_ml.recognizer import SandboxModelRecognizer
 
 from nicegui import ui, app
 
-from DB.database import (
-    SessionLocal,
-    SandboxClass,
-    SandboxSample,
-    SandboxTrainedModel
-)
+from DB.database import SessionLocal, SandboxClass, SandboxSample, SandboxTrainedModel
 from auth import require_session
-from sandbox_ml.config import TrainingConfig
-from sandbox_ml.training import train_sandbox_model, SandboxTrainingError
-from sandbox_ml.recognizer import SandboxModelRecognizer
 from sandbox.services import (
     SandboxError,
     create_class,
@@ -25,20 +20,11 @@ from sandbox.services import (
     get_dataset_for_user,
     list_datasets_for_user,
 )
-# Assuming professional_layout is a context manager for the UI shell
 from web.layout import professional_layout
 
 
 class SandboxOverviewPage:
-    """
-    Renders the high-level overview of a user's machine learning datasets.
-
-    This page allows users to list existing datasets, create new ones,
-    and manage dataset-level sharing and deletion.
-    """
-
     def render(self):
-        """Renders the dataset overview UI components."""
         if not require_session():
             return
 
@@ -47,23 +33,16 @@ class SandboxOverviewPage:
         with professional_layout('Sandbox Datasets'):
             ui.label(
                 'Create personal datasets for custom classifiers. '
-                'Phase 1 includes datasets, classes, sample storage, '
-                'and Phase 2 drawing input.'
+                'Phase 1 includes datasets, classes, sample storage, and Phase 2 drawing input.'
             ).classes('text-lg text-slate-600 mb-4')
 
-            # --- Dataset Creation Form ---
-            with ui.card().classes(
-                'w-full p-4 mb-6 bg-slate-50 border border-slate-200'
-            ):
+            with ui.card().classes('w-full p-4 mb-6 bg-slate-50 border border-slate-200'):
                 ui.label('Create New Dataset').classes('text-xl font-semibold mb-3')
                 name_input = ui.input('Dataset name').classes('w-full').props('outlined')
-                desc_input = ui.textarea(
-                    'Description (optional)'
-                ).classes('w-full').props('outlined')
+                desc_input = ui.textarea('Description (optional)').classes('w-full').props('outlined')
                 shared_toggle = ui.switch('Share dataset with everyone').classes('mt-2')
 
                 def handle_create_dataset():
-                    """Validates input and persists a new dataset to the DB."""
                     name = ' '.join((name_input.value or '').strip().split())
                     if not name:
                         ui.notify('Please enter a dataset name.', type='warning')
@@ -89,7 +68,6 @@ class SandboxOverviewPage:
                     'color=primary icon=create_new_folder'
                 )
 
-            # --- Dataset List Display ---
             db = SessionLocal()
             try:
                 datasets = list_datasets_for_user(db, current_user_id)
@@ -98,9 +76,7 @@ class SandboxOverviewPage:
 
             ui.label('My Datasets').classes('text-xl font-semibold mb-2')
             if not datasets:
-                ui.label(
-                    'No datasets yet. Create your first one above.'
-                ).classes('text-slate-500')
+                ui.label('No datasets yet. Create your first one above.').classes('text-slate-500')
                 return
 
             for dataset in datasets:
@@ -110,20 +86,16 @@ class SandboxOverviewPage:
                             ui.label(dataset.name).classes('text-lg font-semibold')
                             if dataset.description:
                                 ui.label(dataset.description).classes('text-slate-600')
-                            ui.label(
-                                f'Shared: {"Yes" if dataset.is_shared else "No"}'
-                            ).classes('text-xs text-slate-500')
-
+                            ui.label(f'Shared: {"Yes" if dataset.is_shared else "No"}').classes(
+                                'text-xs text-slate-500'
+                            )
                         with ui.row().classes('gap-2'):
                             ui.button(
                                 'Open',
-                                on_click=lambda d_id=dataset.id: ui.navigate.to(
-                                    f'/sandbox/dataset/{d_id}'
-                                ),
+                                on_click=lambda d_id=dataset.id: ui.navigate.to(f'/sandbox/dataset/{d_id}'),
                             ).props('color=primary icon=open_in_new')
 
                             def _delete_dataset(d_id=dataset.id):
-                                """Removes the dataset and its associated files."""
                                 db = SessionLocal()
                                 try:
                                     ds = get_dataset_for_user(db, d_id, current_user_id)
@@ -142,23 +114,10 @@ class SandboxOverviewPage:
 
 
 class SandboxDatasetPage:
-    """
-    Renders the detail page for a specific dataset.
-
-    Manages data ingestion (upload/draw), model training, and real-time prediction.
-    """
-
     def __init__(self, dataset_id: int):
-        """
-        Initializes the page with a specific dataset context.
-
-        Args:
-            dataset_id (int): The primary key of the dataset to load.
-        """
         self.dataset_id = dataset_id
 
     def render(self):
-        """Fetches data and renders the complex layout for the dataset sandbox."""
         if not require_session():
             return
 
@@ -187,27 +146,18 @@ class SandboxDatasetPage:
 
             if dataset_desc:
                 ui.label(dataset_desc).classes('text-slate-600')
-            ui.label(
-                f'Shared: {"Yes" if dataset_shared else "No"}'
-            ).classes('text-sm text-slate-500 mb-4')
+            ui.label(f'Shared: {"Yes" if dataset_shared else "No"}').classes(
+                'text-sm text-slate-500 mb-4'
+            )
 
             with ui.row().classes('w-full gap-6 items-start'):
-                # Left Column: Management & Actions
                 with ui.column().classes('w-1/3 gap-4'):
-                    with ui.card().classes(
-                        'w-full p-4 bg-slate-50 border border-slate-200'
-                    ):
+                    with ui.card().classes('w-full p-4 bg-slate-50 border border-slate-200'):
                         ui.label('Add Class').classes('text-lg font-semibold mb-2')
-                        class_name = ui.input('Class label').classes(
-                            'w-full'
-                        ).props('outlined')
-                        class_desc = ui.textarea(
-                            'Description (optional)'
-                        ).classes('w-full').props('outlined')
+                        class_name = ui.input('Class label').classes('w-full').props('outlined')
+                        class_desc = ui.textarea('Description (optional)').classes('w-full').props('outlined')
 
                         def handle_add_class():
-                            """Creates a new classification category for
-                            this dataset."""
                             name = ' '.join((class_name.value or '').strip().split())
                             if not name:
                                 ui.notify('Please enter a class label.', type='warning')
@@ -238,16 +188,15 @@ class SandboxDatasetPage:
 
                     self._render_upload_sample_card(classes, current_user_id)
                     self._render_draw_sample_card(classes, current_user_id)
-                    self._render_training_card(classes, samples, current_user_id)
+                    self._render_training_card(classes,samples, current_user_id)
                     self._render_prediction_card(current_user_id)
 
-                # Right Column: Data Visualization
+
                 with ui.column().classes('w-2/3 gap-4'):
                     self._render_classes_card(classes, current_user_id)
                     self._render_samples_card(samples, class_name_map, current_user_id)
 
     def _render_upload_sample_card(self, classes, current_user_id: int):
-        """Renders the file upload interface for images."""
         with ui.card().classes('w-full p-4 bg-slate-50 border border-slate-200'):
             ui.label('Upload Sample').classes('text-lg font-semibold mb-2')
 
@@ -264,11 +213,11 @@ class SandboxDatasetPage:
                 ui.label('Create a class before uploading samples.').classes('text-slate-500')
 
             note_input = ui.textarea('Note (optional)').classes('w-full').props('outlined')
+
             uploaded_file_data = {'content': None, 'filename': None}
             file_label = ui.label('No file selected').classes('text-sm text-slate-500')
 
             async def handle_file_upload(e):
-                """Processes the raw byte stream from the upload component."""
                 try:
                     safe_name = Path(e.file.name).name
                     chunks = []
@@ -295,7 +244,6 @@ class SandboxDatasetPage:
             ).classes('w-full').props('accept=.png,.jpg,.jpeg,.bmp,.webp')
 
             def handle_upload_sample():
-                """Saves the uploaded file as a permanent sample in the dataset."""
                 if not selected_class or selected_class.value is None:
                     ui.notify('Please select a class first.', type='warning')
                     return
@@ -333,12 +281,10 @@ class SandboxDatasetPage:
             )
 
     def _render_draw_sample_card(self, classes, current_user_id: int):
-        """Renders an interactive HTML5 canvas for hand-drawn data collection."""
         with ui.card().classes('w-full p-4 bg-slate-50 border border-slate-200'):
             ui.label('Draw Sample').classes('text-lg font-semibold mb-2')
             ui.label(
-                'Draw in white on the black canvas. '
-                'The 500x500 PNG is stored; later training will resize it.'
+                'Draw in white on the black canvas. The 500x500 PNG is stored now; later training will resize it to 64x64.'
             ).classes('text-sm text-slate-500 mb-2')
 
             if classes:
@@ -354,23 +300,19 @@ class SandboxDatasetPage:
                 ui.label('Create a class before drawing samples.').classes('text-slate-500')
 
             note_input = ui.textarea('Note (optional)').classes('w-full').props('outlined')
+
             canvas_id = f'sandbox_canvas_{self.dataset_id}'
             brush_id = f'sandbox_brush_{self.dataset_id}'
 
             ui.html(f"""
             <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
                 <canvas id="{canvas_id}" width="500" height="500"
-                    style="width: 100%; max-width: 500px; height: auto;
-                    border: 1px solid #94a3b8; border-radius: 8px;
-                    background: #000; touch-action: none;">
+                    style="width: 100%; max-width: 500px; height: auto; border: 1px solid #94a3b8; border-radius: 8px; background: #000; touch-action: none;">
                 </canvas>
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <label for="{brush_id}"
-                           style="font-size: 14px; color: #475569;">
-                        Brush size
-                    </label>
-                    <input id="{brush_id}" type="range"
-                           min="4" max="40" value="18" />
+                    <label for="{brush_id}" style="font-size: 14px; color: #475569;">Brush size</label>
+                    <input id="{brush_id}" type="range" min="4" max="40" value="18" />
+                    <span style="font-size: 12px; color: #64748b;">Use mouse or touch</span>
                 </div>
             </div>
             """)
@@ -381,6 +323,7 @@ class SandboxDatasetPage:
                     const canvas = document.getElementById('{canvas_id}');
                     const brush = document.getElementById('{brush_id}');
                     if (!canvas || !brush) return;
+
                     const ctx = canvas.getContext('2d');
 
                     function resetCanvas() {{
@@ -392,7 +335,8 @@ class SandboxDatasetPage:
                     window['clear_{canvas_id}'] = resetCanvas;
 
                     let drawing = false;
-                    let lastX = 0, lastY = 0;
+                    let lastX = 0;
+                    let lastY = 0;
 
                     function getPos(event) {{
                         const rect = canvas.getBoundingClientRect();
@@ -408,21 +352,27 @@ class SandboxDatasetPage:
                         event.preventDefault();
                         drawing = true;
                         const pos = getPos(event);
-                        lastX = pos.x; lastY = pos.y;
+                        lastX = pos.x;
+                        lastY = pos.y;
                     }}
 
                     function draw(event) {{
                         if (!drawing) return;
                         event.preventDefault();
                         const pos = getPos(event);
+
                         ctx.strokeStyle = 'white';
                         ctx.lineWidth = Number(brush.value);
                         ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+
                         ctx.beginPath();
                         ctx.moveTo(lastX, lastY);
                         ctx.lineTo(pos.x, pos.y);
                         ctx.stroke();
-                        lastX = pos.x; lastY = pos.y;
+
+                        lastX = pos.x;
+                        lastY = pos.y;
                     }}
 
                     function stop(event) {{
@@ -433,9 +383,12 @@ class SandboxDatasetPage:
                     canvas.addEventListener('mousedown', start);
                     canvas.addEventListener('mousemove', draw);
                     canvas.addEventListener('mouseup', stop);
+                    canvas.addEventListener('mouseleave', stop);
+
                     canvas.addEventListener('touchstart', start, {{passive: false}});
                     canvas.addEventListener('touchmove', draw, {{passive: false}});
                     canvas.addEventListener('touchend', stop, {{passive: false}});
+                    canvas.addEventListener('touchcancel', stop, {{passive: false}});
                 }}, 100);
             </script>
             """)
@@ -444,7 +397,6 @@ class SandboxDatasetPage:
                 await ui.run_javascript(f"window['clear_{canvas_id}']();")
 
             async def save_drawing():
-                """Captures canvas as PNG and saves to database."""
                 if not selected_class or selected_class.value is None:
                     ui.notify('Please select a class first.', type='warning')
                     return
@@ -458,7 +410,8 @@ class SandboxDatasetPage:
                         ui.notify('Could not read canvas data.', type='negative')
                         return
 
-                    content = base64.b64decode(data_url.split(',', 1)[1])
+                    encoded = data_url.split(',', 1)[1]
+                    content = base64.b64decode(encoded)
                 except Exception as exc:
                     ui.notify(f'Could not save drawing: {exc}', type='negative')
                     return
@@ -466,6 +419,10 @@ class SandboxDatasetPage:
                 db = SessionLocal()
                 try:
                     dataset = get_dataset_for_user(db, self.dataset_id, current_user_id)
+                    if not dataset:
+                        ui.notify('Dataset not found.', type='negative')
+                        return
+
                     create_sample(
                         db=db,
                         dataset=dataset,
@@ -475,17 +432,18 @@ class SandboxDatasetPage:
                         content=content,
                         user_note=(note_input.value or '').strip() or None,
                     )
-                    ui.notify('Drawing saved.', type='positive')
+                    ui.notify('Drawing saved as sample.', type='positive')
                     ui.navigate.to(f'/sandbox/dataset/{self.dataset_id}')
+                except (SandboxError, ValueError) as exc:
+                    ui.notify(str(exc), type='negative')
                 finally:
                     db.close()
 
             with ui.row().classes('gap-2'):
-                ui.button('Clear', on_click=clear_canvas).props('outline icon=delete_sweep')
-                ui.button('Save', on_click=save_drawing).props('color=primary icon=draw')
+                ui.button('Clear Canvas', on_click=clear_canvas).props('outline icon=delete_sweep')
+                ui.button('Save Drawing Sample', on_click=save_drawing).props('color=primary icon=draw')
 
     def _render_classes_card(self, classes, current_user_id: int):
-        """Displays a list of defined labels for the classifier."""
         with ui.card().classes('w-full p-4 border border-slate-200'):
             ui.label('Classes').classes('text-lg font-semibold mb-2')
             if not classes:
@@ -505,10 +463,12 @@ class SandboxDatasetPage:
                                     SandboxClass.id == class_id,
                                     SandboxClass.dataset.has(owner_user_id=current_user_id),
                                 ).first()
-                                if sandbox_class:
-                                    delete_class(db, sandbox_class)
-                                    ui.notify('Class deleted.', type='positive')
-                                    ui.navigate.to(f'/sandbox/dataset/{self.dataset_id}')
+                                if not sandbox_class:
+                                    ui.notify('Class not found.', type='negative')
+                                    return
+                                delete_class(db, sandbox_class)
+                                ui.notify('Class deleted.', type='positive')
+                                ui.navigate.to(f'/sandbox/dataset/{self.dataset_id}')
                             finally:
                                 db.close()
 
@@ -517,7 +477,6 @@ class SandboxDatasetPage:
                         )
 
     def _render_samples_card(self, samples, class_name_map, current_user_id: int):
-        """Renders a grid of images currently in the dataset."""
         with ui.card().classes('w-full p-4 border border-slate-200'):
             ui.label('Samples').classes('text-lg font-semibold mb-2')
             if not samples:
@@ -550,10 +509,12 @@ class SandboxDatasetPage:
                                         SandboxSample.id == sample_id,
                                         SandboxSample.dataset.has(owner_user_id=current_user_id),
                                     ).first()
-                                    if sample:
-                                        delete_sample(db, sample)
-                                        ui.notify('Sample deleted.', type='positive')
-                                        ui.navigate.to(f'/sandbox/dataset/{self.dataset_id}')
+                                    if not sample:
+                                        ui.notify('Sample not found.', type='negative')
+                                        return
+                                    delete_sample(db, sample)
+                                    ui.notify('Sample deleted.', type='positive')
+                                    ui.navigate.to(f'/sandbox/dataset/{self.dataset_id}')
                                 finally:
                                     db.close()
 
@@ -562,31 +523,40 @@ class SandboxDatasetPage:
                             )
 
     def _render_training_card(self, classes, samples, current_user_id: int):
-        """Training configuration panel for CNN, MLP, or LogReg models."""
         with ui.card().classes('w-full p-4 bg-slate-50 border border-slate-200'):
             ui.label('Train Custom Model').classes('text-lg font-semibold mb-2')
+            ui.label('Requires at least 2 classes and at least 5 samples per class.').classes(
+                'text-sm text-slate-500'
+            )
 
             model_type = ui.select(
-                options=['cnn', 'mlp', 'logreg'], value='cnn', label='Architecture'
+                options=['cnn', 'mlp', 'logreg'],
+                value='cnn',
+                label='Model type',
             ).classes('w-full').props('outlined')
 
-            model_name = ui.input('Model name').classes('w-full').props('outlined')
-            epochs = ui.number('Epochs', value=10, min=1).classes('w-full').props('outlined')
-            lr = ui.number(
+            model_name = ui.input('Model name (optional)').classes('w-full').props('outlined')
+
+            epochs = ui.number('Epochs', value=10, min=1, max=100).classes('w-full').props('outlined')
+            batch_size = ui.number('Batch size', value=16, min=1, max=256).classes('w-full').props('outlined')
+            learning_rate = ui.number(
                 'Learning rate',
                 value=0.001,
-                step=0.0001
+                min=0.00001,
+                max=1.0,
+                step=0.0001,
             ).classes('w-full').props('outlined')
 
             def handle_train():
-                """Triggers the backend training pipeline."""
                 config = TrainingConfig(
                     epochs=int(epochs.value),
-                    batch_size=16,
-                    learning_rate=float(lr.value),
+                    batch_size=int(batch_size.value),
+                    learning_rate=float(learning_rate.value),
                 )
+
                 try:
-                    ui.notify('Training started...')
+                    ui.notify('Training started. The page may pause briefly.', type='info')
+
                     trained_model = train_sandbox_model(
                         dataset_id=self.dataset_id,
                         owner_user_id=current_user_id,
@@ -594,15 +564,16 @@ class SandboxDatasetPage:
                         model_name=(model_name.value or '').strip() or None,
                         config=config,
                     )
-                    ui.notify(f'Trained: {trained_model.name}', type='positive')
-                    ui.navigate.to(f'/sandbox/dataset/{self.dataset_id}')
-                except Exception as exc:
-                    ui.notify(f'Failed: {exc}', type='negative')
 
-            ui.button('Train', on_click=handle_train).props('color=primary icon=model_training')
+                    ui.notify(f'Model trained successfully: {trained_model.name}', type='positive')
+                    ui.navigate.to(f'/sandbox/dataset/{self.dataset_id}')
+
+                except Exception as exc:
+                    ui.notify(f'Training failed: {exc}', type='negative')
+
+            ui.button('Train Model', on_click=handle_train).props('color=primary icon=model_training')
 
     def _render_prediction_card(self, current_user_id: int):
-        """Inference panel for testing trained models against new data."""
         db = SessionLocal()
         try:
             trained_models = (
@@ -618,26 +589,237 @@ class SandboxDatasetPage:
             db.close()
 
         with ui.card().classes('w-full p-4 bg-slate-50 border border-slate-200'):
-            ui.label('Inference').classes('text-lg font-semibold mb-2')
+            ui.label('Predict with Trained Model').classes('text-lg font-semibold mb-2')
 
             if not trained_models:
-                ui.label('No models available.').classes('text-slate-500')
+                ui.label('No trained models yet. Train a model first.').classes('text-slate-500')
                 return
 
-            model_options = {str(m.id): f'{m.name}' for m in trained_models}
+            model_options = {
+                str(m.id): f'{m.name} ({m.model_type})'
+                for m in trained_models
+            }
+
             selected_model = ui.select(
-                options=model_options, value=next(iter(model_options.keys()))
+                options=model_options,
+                value=next(iter(model_options.keys())),
+                label='Trained model',
             ).classes('w-full').props('outlined')
 
             result_area = ui.column().classes('w-full gap-1')
 
-            def render_result(result: dict):
+            uploaded_file_data = {'content': None, 'filename': None}
+            file_label = ui.label('No prediction image selected').classes('text-sm text-slate-500')
+
+            async def handle_prediction_upload(e):
+                try:
+                    safe_name = Path(e.file.name).name
+                    chunks = []
+                    async for chunk in e.file.iterate():
+                        chunks.append(chunk)
+                    content = b''.join(chunks)
+
+                    if not content:
+                        ui.notify('Uploaded file is empty.', type='negative')
+                        return
+
+                    uploaded_file_data['content'] = content
+                    uploaded_file_data['filename'] = safe_name
+                    file_label.set_text(f'Selected file: {safe_name}')
+                    ui.notify('Prediction image loaded.', type='positive')
+                except Exception as exc:
+                    ui.notify(f'Upload failed: {exc}', type='negative')
+
+            ui.upload(
+                label='Upload image for prediction',
+                on_upload=handle_prediction_upload,
+                auto_upload=True,
+                max_files=1,
+            ).classes('w-full').props('accept=.png,.jpg,.jpeg,.bmp,.webp')
+
+            def render_prediction_result(result: dict):
                 result_area.clear()
                 with result_area:
-                    ui.label(
-                        f'Result: {result["predicted_label"]}'
-                    ).classes('text-green-700 font-bold')
-                    ui.label(f'Confidence: {result["confidence"]:.2%}')
+                    ui.label(f'Predicted label: {result["predicted_label"]}').classes(
+                        'text-lg font-semibold text-green-700'
+                    )
+                    ui.label(f'Confidence: {result["confidence"]:.2%}').classes(
+                        'text-sm text-slate-600'
+                    )
+                    ui.label('Class probabilities').classes('font-medium mt-2')
 
-            # Code for Prediction logic (Upload/Draw) omitted for brevity
-            # but follows the same pattern as Sample creation.
+                    for label, prob in sorted(
+                            result['probabilities'].items(),
+                            key=lambda item: item[1],
+                            reverse=True,
+                    ):
+                        ui.label(f'{label}: {prob:.2%}').classes('text-sm text-slate-600')
+
+            def get_selected_model_record():
+                db = SessionLocal()
+                try:
+                    return (
+                        db.query(SandboxTrainedModel)
+                        .filter(
+                            SandboxTrainedModel.id == int(selected_model.value),
+                            SandboxTrainedModel.owner_user_id == current_user_id,
+                        )
+                        .first()
+                    )
+                finally:
+                    db.close()
+
+            def predict_uploaded_image():
+                if not uploaded_file_data['content']:
+                    ui.notify('Please upload an image first.', type='warning')
+                    return
+
+                model_record = get_selected_model_record()
+                if not model_record:
+                    ui.notify('Trained model not found.', type='negative')
+                    return
+
+                try:
+                    recognizer = SandboxModelRecognizer(model_record.checkpoint_path)
+                    result = recognizer.predict_from_image_bytes(uploaded_file_data['content'])
+                    render_prediction_result(result)
+                except Exception as exc:
+                    ui.notify(f'Prediction failed: {exc}', type='negative')
+
+            ui.button('Predict Uploaded Image', on_click=predict_uploaded_image).props(
+                'color=primary icon=psychology'
+            )
+
+            ui.separator().classes('my-4')
+            ui.label('Or draw an image for prediction').classes('font-medium')
+
+            canvas_id = f'prediction_canvas_{self.dataset_id}'
+            brush_id = f'prediction_brush_{self.dataset_id}'
+
+            ui.html(f'''
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+                <canvas id="{canvas_id}" width="500" height="500"
+                    style="width: 100%; max-width: 500px; height: auto; border: 1px solid #94a3b8; border-radius: 8px; background: #000; touch-action: none;">
+                </canvas>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <label for="{brush_id}" style="font-size: 14px; color: #475569;">Brush size</label>
+                    <input id="{brush_id}" type="range" min="4" max="40" value="18" />
+                </div>
+            </div>
+            ''')
+
+            ui.add_body_html(f'''
+            <script>
+                setTimeout(function() {{
+                    const canvas = document.getElementById('{canvas_id}');
+                    const brush = document.getElementById('{brush_id}');
+                    if (!canvas || !brush) return;
+
+                    const ctx = canvas.getContext('2d');
+
+                    function resetCanvas() {{
+                        ctx.fillStyle = 'black';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }}
+
+                    resetCanvas();
+                    window['clear_{canvas_id}'] = resetCanvas;
+
+                    let drawing = false;
+                    let lastX = 0;
+                    let lastY = 0;
+
+                    function getPos(event) {{
+                        const rect = canvas.getBoundingClientRect();
+                        const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+                        const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+                        return {{
+                            x: (clientX - rect.left) * (canvas.width / rect.width),
+                            y: (clientY - rect.top) * (canvas.height / rect.height)
+                        }};
+                    }}
+
+                    function start(event) {{
+                        event.preventDefault();
+                        drawing = true;
+                        const pos = getPos(event);
+                        lastX = pos.x;
+                        lastY = pos.y;
+                    }}
+
+                    function draw(event) {{
+                        if (!drawing) return;
+                        event.preventDefault();
+                        const pos = getPos(event);
+
+                        ctx.strokeStyle = 'white';
+                        ctx.lineWidth = Number(brush.value);
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+
+                        ctx.beginPath();
+                        ctx.moveTo(lastX, lastY);
+                        ctx.lineTo(pos.x, pos.y);
+                        ctx.stroke();
+
+                        lastX = pos.x;
+                        lastY = pos.y;
+                    }}
+
+                    function stop(event) {{
+                        event.preventDefault();
+                        drawing = false;
+                    }}
+
+                    canvas.addEventListener('mousedown', start);
+                    canvas.addEventListener('mousemove', draw);
+                    canvas.addEventListener('mouseup', stop);
+                    canvas.addEventListener('mouseleave', stop);
+
+                    canvas.addEventListener('touchstart', start, {{passive: false}});
+                    canvas.addEventListener('touchmove', draw, {{passive: false}});
+                    canvas.addEventListener('touchend', stop, {{passive: false}});
+                    canvas.addEventListener('touchcancel', stop, {{passive: false}});
+                }}, 100);
+            </script>
+            ''')
+
+            async def clear_prediction_canvas():
+                await ui.run_javascript(f"window['clear_{canvas_id}']();")
+
+            async def predict_drawing():
+                try:
+                    data_url = await ui.run_javascript(
+                        f"document.getElementById('{canvas_id}').toDataURL('image/png');",
+                        timeout=5.0,
+                    )
+                    if not data_url or ',' not in data_url:
+                        ui.notify('Could not read canvas data.', type='negative')
+                        return
+
+                    content = base64.b64decode(data_url.split(',', 1)[1])
+                except Exception as exc:
+                    ui.notify(f'Could not read drawing: {exc}', type='negative')
+                    return
+
+                model_record = get_selected_model_record()
+                if not model_record:
+                    ui.notify('Trained model not found.', type='negative')
+                    return
+
+                try:
+                    recognizer = SandboxModelRecognizer(model_record.checkpoint_path)
+                    result = recognizer.predict_from_image_bytes(content)
+                    render_prediction_result(result)
+                except Exception as exc:
+                    ui.notify(f'Prediction failed: {exc}', type='negative')
+
+            with ui.row().classes('gap-2'):
+                ui.button('Clear Prediction Canvas', on_click=clear_prediction_canvas).props(
+                    'outline icon=delete_sweep'
+                )
+                ui.button('Predict Drawing', on_click=predict_drawing).props(
+                    'color=primary icon=draw'
+                )
+
+
