@@ -5,7 +5,6 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 from DB.database import SandboxDataset, SandboxClass, SandboxSample
-#from sandbox.storage import save_sample_file, delete_file_if_exists
 
 
 class SandboxError(Exception):
@@ -26,7 +25,9 @@ def clean_text(value: str | None) -> str | None:
     return cleaned or None
 
 
-def list_datasets_for_user(db: Session, owner_user_id: int) -> list[SandboxDataset]:
+def list_datasets_for_user(
+        db: Session, owner_user_id: int
+) -> list[SandboxDataset]:
     return (
         db.query(SandboxDataset)
         .filter(SandboxDataset.owner_user_id == owner_user_id)
@@ -35,10 +36,17 @@ def list_datasets_for_user(db: Session, owner_user_id: int) -> list[SandboxDatas
     )
 
 
-def get_dataset_for_user(db: Session, dataset_id: int, owner_user_id: int) -> SandboxDataset | None:
+def get_dataset_for_user(
+        db: Session,
+        dataset_id: int,
+        owner_user_id: int
+) -> SandboxDataset | None:
     return (
         db.query(SandboxDataset)
-        .filter(SandboxDataset.id == dataset_id, SandboxDataset.owner_user_id == owner_user_id)
+        .filter(
+            SandboxDataset.id == dataset_id,
+            SandboxDataset.owner_user_id == owner_user_id
+        )
         .first()
     )
 

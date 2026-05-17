@@ -21,7 +21,9 @@ sandbox_predict_transform = transforms.Compose([
 class SandboxModelRecognizer:
     def __init__(self, checkpoint_path: str) -> None:
         self.checkpoint_path = checkpoint_path
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu'
+        )
 
         payload = torch.load(checkpoint_path, map_location=self.device)
 

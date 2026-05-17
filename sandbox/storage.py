@@ -12,12 +12,21 @@ def validate_image_filename(filename: str) -> None:
 
 
 def ensure_sample_dir(user_id: int, dataset_id: int) -> Path:
-    path = BASE_STORAGE_DIR / f'user_{user_id}' / f'dataset_{dataset_id}' / 'samples'
+    path = (BASE_STORAGE_DIR /
+            f'user_{user_id}' /
+            f'dataset_{dataset_id}' /
+            'samples'
+            )
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def save_sample_file(user_id: int, dataset_id: int, filename: str, content: bytes) -> str:
+def save_sample_file(
+        user_id: int,
+        dataset_id: int,
+        filename: str,
+        content: bytes
+) -> str:
     if not filename:
         raise ValueError('Filename is required.')
     if not content:

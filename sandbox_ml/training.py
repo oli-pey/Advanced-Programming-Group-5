@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime
-from pathlib import Path
 import json
+from pathlib import Path
 import random
 from uuid import uuid4
 
@@ -12,12 +12,12 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Subset
 
 from DB.database import (
-    SessionLocal,
-    SandboxDataset,
     SandboxClass,
+    SandboxDataset,
     SandboxSample,
-    SandboxTrainingJob,
     SandboxTrainedModel,
+    SandboxTrainingJob,
+    SessionLocal,
 )
 from sandbox_ml.config import TrainingConfig
 from sandbox_ml.dataset import SandboxImageDataset, build_class_maps
@@ -31,7 +31,11 @@ class SandboxTrainingError(Exception):
     pass
 
 
-def _validate_dataset(classes: list[SandboxClass], samples: list[SandboxSample], config: TrainingConfig) -> None:
+def _validate_dataset(
+    classes: list[SandboxClass],
+    samples: list[SandboxSample],
+    config: TrainingConfig,
+) -> None:
     if len(classes) < config.min_classes:
         raise SandboxTrainingError(
             f'At least {config.min_classes} classes are required for training.'
@@ -39,7 +43,12 @@ def _validate_dataset(classes: list[SandboxClass], samples: list[SandboxSample],
 
     counts = Counter(sample.class_id for sample in samples)
 
-    missing = [c.name for c in classes if counts.get(c.id, 0) < config.min_samples_per_class]
+    missing = [
+        sandbox_class.name
+        for sandbox_class in classes
+        if counts.get(sandbox_class.id, 0) < config.min_samples_per_class
+    ]
+
     if missing:
         raise SandboxTrainingError(
             f'Each class needs at least {config.min_samples_per_class} samples. '
@@ -47,7 +56,11 @@ def _validate_dataset(classes: list[SandboxClass], samples: list[SandboxSample],
         )
 
 
-def _split_indices(total: int, val_split: float, seed: int) -> tuple[list[int], list[int]]:
+def _split_indices(
+    total: int,
+    val_split: float,
+    seed: int,
+) -> tuple[list[int], list[int]]:
     indices = list(range(total))
     random.Random(seed).shuffle(indices)
 
@@ -55,12 +68,18 @@ def _split_indices(total: int, val_split: float, seed: int) -> tuple[list[int], 
     train_size = total - val_size
 
     if train_size < 1:
-        raise SandboxTrainingError('Not enough samples to create a train/validation split.')
+        raise SandboxTrainingError(
+            'Not enough samples to create a train/validation split.'
+        )
 
     return indices[:train_size], indices[train_size:]
 
 
-def _accuracy(model: nn.Module, loader: DataLoader, device: torch.device) -> float:
+def _accuracy(
+    model: nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+) -> float:
     model.eval()
     correct = 0
     total = 0
@@ -96,22 +115,29 @@ def train_sandbox_model(
     model_type = model_type.lower()
 
     db = SessionLocal()
-
     job = None
 
     try:
         dataset = (
             db.query(SandboxDataset)
-            .filter(SandboxDataset.id == dataset_id, SandboxDataset.owner_user_id == owner_user_id)
+            .filter(
+                SandboxDataset.id == dataset_id,
+                SandboxDataset.owner_user_id == owner_user_id,
+            )
             .first()
         )
+
         if not dataset:
             raise SandboxTrainingError('Dataset not found.')
 
         classes = list(dataset.classes)
         samples = list(dataset.samples)
 
-        _validate_dataset(classes=classes, samples=samples, config=config)
+        _validate_dataset(
+            classes=classes,
+            samples=samples,
+            config=config,
+        )
 
         job = SandboxTrainingJob(
             dataset_id=dataset.id,
@@ -129,7 +155,10 @@ def train_sandbox_model(
         db.refresh(job)
 
         class_to_index, index_to_label = build_class_maps(classes)
-        torch_dataset = SandboxImageDataset(samples=samples, class_to_index=class_to_index)
+        torch_dataset = SandboxImageDataset(
+            samples=samples,
+            class_to_index=class_to_index,
+        )
 
         train_indices, val_indices = _split_indices(
             total=len(torch_dataset),
@@ -149,10 +178,16 @@ def train_sandbox_model(
         )
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        model = create_sandbox_model(model_type=model_type, num_classes=len(classes)).to(device)
+        model = create_sandbox_model(
+            model_type=model_type,
+            num_classes=len(classes),
+        ).to(device)
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr=config.learning_rate,
+        )
 
         last_loss = 0.0
 
@@ -174,16 +209,30 @@ def train_sandbox_model(
 
             last_loss = running_loss / max(1, len(train_loader))
 
-        train_accuracy = _accuracy(model, train_loader, device)
-        val_accuracy = _accuracy(model, val_loader, device)
+        train_accuracy = _accuracy(
+            model=model,
+            loader=train_loader,
+            device=device,
+        )
+        val_accuracy = _accuracy(
+            model=model,
+            loader=val_loader,
+            device=device,
+        )
 
-        checkpoint_path = _make_model_path(owner_user_id=owner_user_id, model_type=model_type)
+        checkpoint_path = _make_model_path(
+            owner_user_id=owner_user_id,
+            model_type=model_type,
+        )
 
         payload = {
             'model_state_dict': model.state_dict(),
             'model_type': model_type,
             'num_classes': len(classes),
-            'class_index': {str(k): v for k, v in index_to_label.items()},
+            'class_index': {
+                str(index): label
+                for index, label in index_to_label.items()
+            },
             'config': config.__dict__,
             'metrics': {
                 'train_accuracy': train_accuracy,

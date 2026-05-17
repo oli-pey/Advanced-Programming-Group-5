@@ -4,10 +4,13 @@ from ml.preprocessing import preprocess_png_bytes
 from ml.result import PredictionResult
 from ml.models.logreg_model import LogRegMNIST
 
+
 class LogRegRecognizer(DigitRecognizer):
     def __init__(self, model_path: str):
         self.model = LogRegMNIST()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
 
         payload = torch.load(model_path, map_location=self.device)
         self.model.load_state_dict(payload["model_state_dict"])

@@ -48,7 +48,9 @@ class SandboxImageDataset(Dataset):
         return x, torch.tensor(y, dtype=torch.long)
 
 
-def build_class_maps(classes: list[SandboxClass]) -> tuple[dict[int, int], dict[int, str]]:
+def build_class_maps(
+        classes: list[SandboxClass]
+) -> tuple[dict[int, int], dict[int, str]]:
     sorted_classes = sorted(classes, key=lambda c: c.name)
 
     class_to_index = {c.id: idx for idx, c in enumerate(sorted_classes)}

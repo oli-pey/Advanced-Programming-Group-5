@@ -1,6 +1,7 @@
 from ml.recognizers.cnn_recognizer import CNNRecognizer
 from ml.recognizers.logreg_recognizer import LogRegRecognizer
 
+
 AVAILABLE_MODELS = ["cnn", "logreg"]
 
 def get_recognizer(model_name: str):
