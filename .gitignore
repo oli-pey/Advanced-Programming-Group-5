@@ -1,4 +1,6 @@
 __pycache__/
 *.pyc
+.nicegui/
 mydata.db
-.venv
+storage/sandbox/
+storage/sandbox_models/
