@@ -1,15 +1,21 @@
 import os
+
 from nicegui import ui
+
 from routes import register_routes
 
 
 def main():
     register_routes()
+
     ui.run(
-    title="Digit Recognizer",
-    storage_secret=os.getenv("STORAGE_SECRET", "dev-secret-change-me"),
-)
+        title='Digit Recognizer',
+        storage_secret=os.getenv(
+            'STORAGE_SECRET',
+            'dev-secret-change-me',
+        ),
+    )
 
 
-if __name__ in {"__main__", "__mp_main__"}:
+if __name__ in {'__main__', '__mp_main__'}:
     main()
